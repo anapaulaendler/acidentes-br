@@ -1,0 +1,12 @@
+pandas>=2.2
+numpy>=1.26
+scikit-learn>=1.5
+streamlit>=1.40
+plotly>=5.24
+folium>=0.18
+streamlit-folium>=0.23
+matplotlib>=3.9
+seaborn>=0.13
+torch>=2.4
+pytest>=8.3
+-e . # dev mode
