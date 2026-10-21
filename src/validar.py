@@ -5,6 +5,7 @@ from colunas import OBRIGATORIAS
 
 class ErroDeColunas(Exception):
     def __init__(self, faltando: list[str]):
+        self.faltando = faltando
         super().__init__(f"Faltam as colunas: {','.join(faltando)}") 
 
 

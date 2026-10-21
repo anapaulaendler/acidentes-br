@@ -10,7 +10,7 @@ def carregar(fonte: str | Path | IO) -> pd.DataFrame:
 
     validar_colunas(df)
 
-    df = df.drop(columns=ADMINISTRATIVAS)
+    df = df.drop(columns=list(ADMINISTRATIVAS))
 
     for coluna in ["latitude", "longitude", "km"]:
         df[coluna] = df[coluna].str.replace(",", ".", regex=False)
