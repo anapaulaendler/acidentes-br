@@ -9,6 +9,9 @@ import pandas as pd
 from colunas import CATEGORICAS, NUMERICAS
 
 
+DESCONHECIDO = "<desconhecido>"
+
+
 def _para_texto(x):
     return x.astype(str)
 
@@ -39,14 +42,14 @@ class CodificadorCategorias(BaseEstimator, TransformerMixin):
             valores = sorted(df[coluna].dropna().astype(str).unique())
 
             # basicamente valores que não apareceram no treino
-            vocabulario = {DESCONHECIDO: 0} # type: ignore 
+            vocabulario = {DESCONHECIDO: 0}
 
             for indice, valor in enumerate(valores, start=1):
                 vocabulario[valor] = indice
 
             self.vocabularios_[coluna] = vocabulario
 
-        self.cardinalidades_: [] # type: ignore
+        self.cardinalidades_ = []
 
         for coluna in CATEGORICAS:
             self.cardinalidades_.append(len(self.vocabularios_[coluna]))
