@@ -1,0 +1,7 @@
+{# Aviso para bases pequenas: a análise por trecho precisa de trechos com pelo menos 30 acidentes. #}
+{% macro aviso_trechos(validos, minimo) %}
+<p class="limite">
+  A base atual tem {{ validos|num(0) }} trechos com pelo menos 30 acidentes. Esta análise precisa de pelo menos {{ minimo }}.
+  Carregue uma base maior (por exemplo, a base completa) ou limpe os filtros.
+</p>
+{% endmacro %}

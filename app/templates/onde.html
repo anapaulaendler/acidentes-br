@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "_cartao.html" import cartao %}
+{% from "_aviso_trechos.html" import aviso_trechos %}
+{% block cabeca %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% endblock %}
+{% block conteudo %}
+<header class="cabecalho">
+  <h1>Onde?</h1>
+  <p>Onde os acidentes fatais acontecem, e que tipos de trecho existem nas rodovias federais.</p>
+</header>
+
+<div class="grade">
+  {% call cartao("Mapa dos acidentes fatais",
+       leitura="Cada ponto é um acidente com pelo menos uma morte. Clique num ponto para ver o local, a data e o tipo do acidente.",
+       limite=("O mapa mostra uma amostra aleatória de " ~ (pontos_mostrados|num(0)) ~ " dos " ~ (total_fatais|num(0)) ~ " acidentes fatais, para o navegador não ficar lento.") if pontos_mostrados < total_fatais else none,
+       largo=True) %}
+    <div id="mapa"></div>
+  {% endcall %}
+
+  {% if agrupados %}
+  {% call cartao("Quatro tipos de trecho (personas do K-Means)",
+       leitura="O K-Means agrupou os trechos (UF + BR + faixa de 5 km) pelo perfil dos acidentes: volume, noite, chuva, curva, fim de semana, veículos e pessoas por acidente. A persona com a maior letalidade é \"" ~ persona_mais_letal ~ "\" (" ~ letalidade_mais_letal ~ ").",
+       largo=True) %}
+    <div class="rolagem">{{ perfil|tabela(1) }}</div>
+    <table class="tabela" style="margin-top:10px">
+      <thead><tr><th>Persona</th><th style="text-align:left">Ação sugerida</th></tr></thead>
+      {% for persona, acao in acoes.items() %}<tr><td>{{ persona }}</td><td style="text-align:left;white-space:normal">{{ acao }}</td></tr>{% endfor %}
+    </table>
+  {% endcall %}
+
+  {% call cartao("As personas no espaço: volume de acidentes e curvas",
+       leitura=("Os corredores urbanos (muitos acidentes) e a serra (muitas curvas) ficam separados. " if mostra_separacao else "") ~ "O gráfico mostra só duas das sete variáveis. Os grupos também se separam por noite, chuva, fim de semana e pessoas por acidente.") %}
+    {{ grafico_personas }}
+  {% endcall %}
+
+  {% call cartao("Pista simples × pista dupla dentro de cada persona",
+       leitura=leitura_comparacao) %}
+    {{ grafico_comparacao }}
+    <div class="rolagem">{{ tabela_comparacao|tabela(2) }}</div>
+    <p class="nota">Pista "simples": pelo menos 80% dos acidentes do trecho em pista simples. "Dupla ou múltipla": no máximo 20%. Letalidade do conjunto: total de fatais dividido pelo total de acidentes.</p>
+  {% endcall %}
+  {% else %}
+  {% call cartao("Personas dos trechos (K-Means)", largo=True) %}
+    {{ aviso_trechos(trechos_validos, minimo_trechos) }}
+  {% endcall %}
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const pontos = {{ pontos|tojson }};
+  const mapa = L.map("mapa", { preferCanvas: true }).setView([-14.5, -51], 4);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18,
+    attribution: "&copy; OpenStreetMap",
+  }).addTo(mapa);
+  for (const [lat, lon, descricao] of pontos) {
+    L.circleMarker([lat, lon], { radius: 3, color: "#eb6834", weight: 0, fillOpacity: 0.6 })
+      // o texto vem do arquivo enviado: entra como texto, nunca como HTML
+      .bindPopup(() => Object.assign(document.createElement("span"), { textContent: descricao }))
+      .addTo(mapa);
+  }
+  if (pontos.length) {
+    mapa.fitBounds(pontos.map(([lat, lon]) => [lat, lon]), { padding: [20, 20] });
+  }
+</script>
+{% endblock %}
