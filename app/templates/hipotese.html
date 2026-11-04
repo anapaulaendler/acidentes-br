@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "_cartao.html" import cartao %}
+{% block conteudo %}
+<header class="cabecalho">
+  <h1>A hipótese</h1>
+  <p>O que faz um acidente numa rodovia federal ser fatal? Esta tela mostra a evidência dos dados crus, antes de qualquer modelo.</p>
+</header>
+
+<div class="hipotese">
+  <b>Hipótese:</b> a duplicação de trechos de pista simples reduz a chance de um acidente ser fatal.
+  <div class="numeros">
+    <div class="numero"><b>{{ total|num(0) }}</b><span>acidentes</span></div>
+    <div class="numero"><b>{{ pct_fatal|pct }}</b><span>com pelo menos uma morte</span></div>
+    <div class="numero"><b>{{ anos }}</b><span>período</span></div>
+  </div>
+</div>
+
+<div class="grade">
+  {% call cartao("1. Na pista simples, um acidente é fatal com mais frequência",
+       leitura=leitura_letalidade,
+       limite="Esta comparação não controla outros fatores (clima, causa, traçado). As telas Condições e Onde fazem esse controle.") %}
+    {{ grafico_letalidade }}
+  {% endcall %}
+
+  {% call cartao("2. O mecanismo: a colisão frontal", leitura=leitura_frontal) %}
+    <div class="dois">
+      <div><p class="nota">Quantos acidentes são colisão frontal</p>{{ grafico_frontal_freq }}</div>
+      <div><p class="nota">Quantas colisões frontais são fatais</p>{{ grafico_frontal_letal }}</div>
+    </div>
+  {% endcall %}
+
+  {% call cartao("3. A diferença ao longo dos anos",
+       leitura=leitura_anos,
+       limite="Em 2017, a taxa de fatais é mais baixa em todos os tipos de pista. Os dados não mostram a causa dessa diferença." if destaque_2017 else none,
+       largo=True) %}
+    {{ grafico_anos }}
+  {% endcall %}
+
+  {% call cartao("Os três níveis de evidência", largo=True) %}
+    <ol class="niveis">
+      <li><b>1. Dados crus</b> (esta tela): a letalidade por tipo de pista, sem controle de outros fatores.</li>
+      <li><b>2. Comparação justa</b>: a regressão por trecho controla clima, traçado, causas e região
+        (<a href="{{ url_for('condicoes.tela', **filtros_atuais.como_dict()) }}">Condições</a>), e as personas comparam trechos parecidos
+        (<a href="{{ url_for('onde.tela', **filtros_atuais.como_dict()) }}">Onde?</a>).</li>
+      <li><b>3. Experimento natural</b>: o mesmo trecho antes e depois da duplicação. <span class="status andamento">a fazer</span></li>
+    </ol>
+  {% endcall %}
+</div>
+{% endblock %}

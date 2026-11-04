@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_cartao.html" import cartao %}
+{% block conteudo %}
+<header class="cabecalho">
+  <h1>Quando?</h1>
+  <p>A letalidade muda com a hora, o dia da semana e o mês.</p>
+</header>
+
+<div class="grade">
+  {% call cartao("Acidentes e letalidade por hora do dia",
+       leitura=leitura_hora,
+       largo=True) %}
+    <div class="dois">
+      <div>{{ grafico_hora_volume }}</div>
+      <div>{{ grafico_hora }}</div>
+    </div>
+  {% endcall %}
+
+  {% call cartao("Letalidade por dia da semana", leitura=leitura_dia) %}
+    {{ grafico_dia }}
+  {% endcall %}
+
+  {% call cartao("Letalidade por mês") %}
+    {{ grafico_mes }}
+  {% endcall %}
+
+  {% call cartao("Gravidade dos acidentes", leitura=leitura_gravidade,
+       limite="Uma classe rara faz a acurácia enganar: um modelo que sempre diz \"não fatal\" acerta quase todos os casos. A tela Modelos usa recall e precisão.") %}
+    {{ grafico_gravidade }}
+  {% endcall %}
+</div>
+{% endblock %}
