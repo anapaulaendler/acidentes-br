@@ -29,7 +29,7 @@ def montar_trechos(df: pd.DataFrame) -> pd.DataFrame:
 
     # o clima tem NaN, e um acidente sem clima não conta nem como chuva nem como tempo seco
     chuva = df["condicao_metereologica"].isin(["Chuva", "Garoa/Chuvisco"])
-    chuva = chuva.where(df["condicao_metereologica"].notna())
+    chuva = chuva.astype(float).where(df["condicao_metereologica"].notna())
 
     df = df.assign(
         simples=df["tipo_pista"] == "Simples",
