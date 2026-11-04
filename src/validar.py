@@ -9,6 +9,12 @@ class ErroDeColunas(Exception):
         super().__init__(f"Faltam as colunas: {','.join(faltando)}") 
 
 
+class ErroDeFormato(Exception):
+    def __init__(self, extensao: str):
+        self.extensao = extensao
+        super().__init__(f"Formato {extensao or 'sem extensão'} não aceito. Envie .csv, .json ou .xml.")
+
+
 def validar_colunas(df: pd.DataFrame):
     faltando = []
     colunas_df = df.columns.tolist()
