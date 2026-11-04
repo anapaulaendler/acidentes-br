@@ -33,7 +33,10 @@ def preprocessador() -> ColumnTransformer:
 
 
 # aqui basicamente a gente substitui o OneHot, que faz cada categoria virar 0 ou 1, por tipo um enum (aí UF ao invés de ser vários
-# 0 ou 1 vira 1, 2, 3...)
+# 0 ou 1 vira 1, 2, 3...). isso serve para o arquivo rede_neural, que precisa disso para a vetorização de posições em rede_neural.py. 
+# a justificativa principal do porquê usar embedding ao invés do one-hot é que, no one-hot, temos a posição como algo parecido com: 
+# "amanhecer" [0, 1, 0, 0, 0] e "anoitecer" [0, 0, 1, 0, 0], enquanto no embedding AS POSIÇÕES DO VETOR SÃO APRENDIDAS DURANTE O TREINO,
+# O QUE AJUDA O MODELO A ENCONTRAR SIMILIARIDADES ENTRE ITENS CATEGÓRICOS. 
 class CodificadorCategorias(BaseEstimator, TransformerMixin):
     def fit(self, df: pd.DataFrame, y=None) -> CodificadorCategorias:
         self.vocabularios_ = {}

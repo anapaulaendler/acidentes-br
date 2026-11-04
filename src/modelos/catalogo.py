@@ -21,6 +21,7 @@ class ModeloRegistrado:
     nome: str
     construtor: Callable[..., BaseEstimator]
     hiperparametros: tuple[Hiperparametro, ...]
+    usa_preprocessador: bool = True
 
 
 CATALOGO: dict[str, ModeloRegistrado] = {}
