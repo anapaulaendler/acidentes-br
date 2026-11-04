@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "_cartao.html" import cartao %}
+{% block titulo %}Dados — Acidentes nas rodovias federais{% endblock %}
+{% block conteudo %}
+<header class="cabecalho">
+  <h1>Dados</h1>
+  <p>Carregue uma base da PRF, veja o que a limpeza fez e consulte os acidentes.</p>
+</header>
+
+<section class="cartao largo">
+  <h3>Carregar uma base</h3>
+  <p>O arquivo precisa ter as colunas dos dados abertos da PRF, agrupados por ocorrência. Formatos: .csv (separador <code>;</code>), .json ou .xml.</p>
+  <form class="upload" method="post" action="{{ url_for('dados.upload') }}" enctype="multipart/form-data">
+    <input type="file" name="arquivo" accept=".csv,.json,.xml" required>
+    <button type="submit">Enviar arquivo</button>
+  </form>
+  <div class="botoes">
+    {% if tem_base_completa %}
+    <form method="post" action="{{ url_for('dados.completa') }}"><button type="submit">Usar a base completa PRF 2017–2025</button></form>
+    {% endif %}
+    <form method="post" action="{{ url_for('dados.amostra') }}"><button type="submit" class="secundario">Usar a amostra PR 2024</button></form>
+  </div>
+  <p class="nota">Uma base nova substitui a anterior e recalcula todas as telas e todos os modelos.</p>
+</section>
+
+{% if base %}
+<div class="grade">
+  {% call cartao("Relatório da limpeza",
+       leitura="A limpeza remove as linhas repetidas, troca os textos que significam \"sem registro\" por valores vazios, padroniza o traçado e invalida as coordenadas fora do Brasil.",
+       limite="As coordenadas inválidas ficam vazias. A limpeza não tenta adivinhar o valor correto.") %}
+    {{ relatorio|tabela(0) }}
+  {% endcall %}
+
+  {% call cartao("A PRF trocou a lista de causas em 2021",
+       leitura="O número de causas diferentes vai de " ~ minimo_causas ~ " a " ~ maximo_causas ~ " por ano. Uma causa antiga pode não existir no ano seguinte, então a app usa também a coluna grupo_causa, com grupos iguais em todos os anos.",
+       limite="Os grupos são uma decisão da equipe." ~ (" O grupo \"Via\" ainda tem uma quebra em 2021." if tem_quebra_2021 else "")) %}
+    {{ grafico_causas }}
+  {% endcall %}
+
+  {% call cartao("Teste dos grupos de causa: % dos acidentes de cada ano",
+       leitura="Se os grupos estão corretos, a proporção de cada grupo muda pouco entre os anos, inclusive de 2020 para 2021.",
+       largo=True) %}
+    <div class="rolagem">{{ grupos|tabela(1) }}</div>
+  {% endcall %}
+
+  {% call cartao("Acidentes (" ~ (linhas_filtradas|num(0)) ~ " com os filtros atuais)", largo=True) %}
+    <div class="rolagem">{{ tabela|tabela(1, indice=False) }}</div>
+    <div class="paginacao">
+      {% if pagina > 1 %}<a href="{{ url_for('dados.tela', pagina=pagina - 1, **filtros_atuais.como_dict()) }}">← anterior</a>{% endif %}
+      <span>Página {{ pagina|num(0) }} de {{ paginas|num(0) }}</span>
+      {% if pagina < paginas %}<a href="{{ url_for('dados.tela', pagina=pagina + 1, **filtros_atuais.como_dict()) }}">próxima →</a>{% endif %}
+    </div>
+  {% endcall %}
+</div>
+{% endif %}
+{% endblock %}

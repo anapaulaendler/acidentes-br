@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Acidentes nas rodovias federais{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='estilo.css') }}">
+  <script src="{{ url_for('plotly_js') }}"></script>
+  {% block cabeca %}{% endblock %}
+</head>
+<body>
+<div class="app">
+  <aside class="lateral">
+    <div class="marca">Acidentes nas rodovias federais</div>
+    {% if base %}<div class="base-atual">{{ base.nome }}<br>{{ base.limpo|length|num(0) }} acidentes</div>{% endif %}
+
+    <nav class="nav">
+      {% for endpoint, nome in telas %}
+        <a href="{{ url_for(endpoint, **filtros_atuais.como_dict()) }}" class="{{ 'ativo' if request.endpoint == endpoint }}">{{ nome }}</a>
+      {% endfor %}
+    </nav>
+
+    {% if opcoes_filtro %}
+    <form class="filtros" method="get" action="{{ url_for(request.endpoint) }}">
+      <div class="label">Filtros</div>
+      {% for campo, rotulo in [('uf', 'UF'), ('ano', 'Ano'), ('pista', 'Tipo de pista')] %}
+      <label>{{ rotulo }}
+        <select name="{{ campo }}" onchange="this.form.submit()">
+          <option value="">Todos</option>
+          {% for valor in opcoes_filtro[campo] %}
+            <option value="{{ valor }}" {{ 'selected' if filtros_atuais[campo] == valor }}>{{ valor }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      {% endfor %}
+      {% if filtros_atuais.ativos() %}<a class="limpar" href="{{ url_for(request.endpoint) }}">Limpar filtros</a>{% endif %}
+    </form>
+    {% endif %}
+  </aside>
+
+  <main class="conteudo">
+    {% for categoria, mensagem in get_flashed_messages(with_categories=true) %}
+      <div class="aviso {{ categoria }}">{{ mensagem }}</div>
+    {% endfor %}
+    {% block conteudo %}{% endblock %}
+  </main>
+</div>
+{% block scripts %}{% endblock %}
+</body>
+</html>

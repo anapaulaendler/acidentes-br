@@ -1,0 +1,9 @@
+{# Cartão de insight: a afirmação (título), a evidência (o conteúdo), a leitura e o limite. #}
+{% macro cartao(titulo, leitura=None, limite=None, largo=False) %}
+<section class="cartao{{ ' largo' if largo }}">
+  <h3>{{ titulo }}</h3>
+  <div class="evidencia">{{ caller() }}</div>
+  {% if leitura %}<p class="leitura"><b>Leitura.</b> {{ leitura }}</p>{% endif %}
+  {% if limite %}<p class="limite"><b>Limite.</b> {{ limite }}</p>{% endif %}
+</section>
+{% endmacro %}
