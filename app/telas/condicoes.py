@@ -1,10 +1,9 @@
 from flask import Blueprint, render_template
 
 from analises.letalidade import letalidade_por
-from app import calculos, graficos
+from app import estado, graficos
 from app.formato import num, pct
 from app.telas import com_base_filtrada
-from modelos import regressao_trechos
 
 bp = Blueprint("condicoes", __name__)
 
@@ -48,7 +47,7 @@ def _leitura_clima(por_clima) -> str:
     return texto
 
 
-SEM_EFEITO_DA_PISTA = ("Com o filtro de pista, todos os trechos têm o mesmo tipo de pista: a regressão não mede o efeito da pista. "
+SEM_EFEITO_DA_PISTA = ("Na base do treino, todos os trechos têm o mesmo tipo de pista: a regressão não mede o efeito da pista. "
                        "Os outros coeficientes continuam válidos.")
 
 
@@ -95,11 +94,10 @@ def tela(df, selecao):
         "leitura_causas": _leitura_causas(por_causa) if len(por_causa) else None,
         "grafico_tracado": graficos.barras(por_tracado, "% dos acidentes que são fatais"),
         "minimo_categoria": MINIMO_CATEGORIA,
-        "trechos_validos": calculos.trechos_validos(df, selecao),
-        "minimo_trechos": regressao_trechos.MINIMO_TRECHOS,
+        "modelos": estado.modelos(),
     }
 
-    resultado = calculos.regressao(df, selecao)
+    resultado = estado.modelos().regressao if estado.modelos() else None
     if resultado is not None:
         contexto.update(_contexto_regressao(resultado))
     contexto["tem_regressao"] = resultado is not None

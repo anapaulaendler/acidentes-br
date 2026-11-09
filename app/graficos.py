@@ -98,27 +98,3 @@ def dispersao_previsto(real: pd.Series, previsto, altura: int = 360) -> Markup:
     fig = _layout(fig, "Letalidade prevista (%)", altura)
     fig.update_xaxes(title="Letalidade real (%)")
     return html(fig)
-
-
-def dispersao_personas(trechos: pd.DataFrame, cores: dict[str, str], altura: int = 420) -> Markup:
-    fig = go.Figure()
-    for persona, grupo in trechos.groupby("persona"):
-        fig.add_scatter(x=grupo["acidentes_por_ano"], y=grupo["pct_curva"], mode="markers", name=persona,
-                        marker=dict(color=cores.get(persona, CINZA_TEXTO), size=6, opacity=0.5),
-                        hovertemplate=f"{persona}<br>%{{x:.1f}} acidentes/ano<br>%{{y:.0f}}% com curva<extra></extra>")
-    fig = _layout(fig, "% dos acidentes com curva", altura)
-    fig.update_xaxes(title="Acidentes por ano (escala log)", type="log", tickvals=[5, 10, 20, 50, 100, 200])
-    return html(fig)
-
-
-def cotovelo_silhueta(diagnostico: pd.DataFrame, k_escolhido: int) -> tuple[Markup, Markup]:
-    graficos = []
-    for coluna, titulo in [("inércia", "Inércia (WCSS)"), ("silhueta", "Silhueta média")]:
-        fig = go.Figure(go.Scatter(x=diagnostico.index, y=diagnostico[coluna], mode="lines+markers",
-                                   line=dict(color=AZUL, width=2), marker=dict(size=8),
-                                   hovertemplate="K = %{x}<br>%{y:.3f}<extra></extra>"))
-        fig.add_vline(x=k_escolhido, line_dash="dash", line_color=CINZA_TEXTO)
-        fig = _layout(fig, titulo, 280)
-        fig.update_xaxes(title="K (número de grupos)", dtick=1)
-        graficos.append(html(fig))
-    return graficos[0], graficos[1]

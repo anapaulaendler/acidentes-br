@@ -8,23 +8,55 @@
 </header>
 
 <section class="cartao largo">
-  <h3>Carregar uma base</h3>
+  <h3>Adicionar dados à base</h3>
+  <p>A base atual é a <b>{{ base.nome }}</b>{% if base.arquivos_adicionados %}, com {{ base.arquivos_adicionados }} arquivo(s) adicionado(s){% endif %}.
+    Um arquivo enviado <b>entra na base</b>: as telas passam a contar com ele, e ele fica salvo para as próximas execuções da app.
+    As linhas que já estavam na base não contam duas vezes.</p>
   <p>O arquivo precisa ter as colunas dos dados abertos da PRF, agrupados por ocorrência. Formatos: .csv (separador <code>;</code>), .json ou .xml.</p>
   <form class="upload" method="post" action="{{ url_for('dados.upload') }}" enctype="multipart/form-data">
     <input type="file" name="arquivo" accept=".csv,.json,.xml" required>
-    <button type="submit">Enviar arquivo</button>
+    <button type="submit">Adicionar à base</button>
   </form>
-  <div class="botoes">
-    {% if tem_base_completa %}
-    <form method="post" action="{{ url_for('dados.completa') }}"><button type="submit">Usar a base completa PRF 2017–2025</button></form>
-    {% endif %}
-    <form method="post" action="{{ url_for('dados.amostra') }}"><button type="submit" class="secundario">Usar a amostra PR 2024</button></form>
-  </div>
-  <p class="nota">Uma base nova substitui a anterior e recalcula todas as telas e todos os modelos.</p>
+  {% if base.arquivos_adicionados %}
+  <form method="post" action="{{ url_for('dados.remover_adicionados') }}"
+        onsubmit="return confirm('Remover os {{ base.arquivos_adicionados }} arquivo(s) adicionado(s) e voltar à base inicial?')">
+    <button type="submit" class="secundario">Remover os dados adicionados</button>
+  </form>
+  {% endif %}
+  <p class="nota">
+    {% if modelos %}Os modelos foram treinados em {{ modelos.treinado_em.strftime('%d/%m/%Y') }} com {{ modelos.acidentes|num(0) }} acidentes ({{ modelos.anos }}).
+    Os dados adicionados entram no próximo treino: <code>python3 -m scripts.treinar_modelos</code>.
+    {% else %}Os modelos ainda não foram treinados. Rode <code>python3 -m scripts.treinar_modelos</code> e reinicie a app.{% endif %}
+  </p>
 </section>
 
-{% if base %}
-<div class="grade">
+{% if comparacao %}
+<div class="grade" style="margin-top:16px">
+  {% call cartao("Como os dados novos se encaixam na base: " ~ comparacao.arquivo,
+       leitura=leitura_comparacao,
+       limite="Se os dados novos repetem acidentes que o modelo viu no treino, o desempenho nos dados novos fica otimista." if comparacao.linhas_novas < comparacao.linhas_arquivo else none,
+       largo=True) %}
+    <div class="dois">
+      <div>
+        <p class="nota">O perfil dos acidentes</p>
+        <div class="rolagem">{{ perfil_comparacao|tabela }}</div>
+      </div>
+      <div>
+        <p class="nota">O modelo treinado (MLP) no teste do treino e nos dados novos</p>
+        {% if comparacao.modelo is not none %}
+          <div class="rolagem">{{ comparacao.modelo|tabela(3) }}</div>
+        {% elif modelos %}
+          <p class="nota">Os dados novos precisam ter acidentes fatais e não fatais para medir o modelo.</p>
+        {% else %}
+          <p class="nota">Sem modelos treinados.</p>
+        {% endif %}
+      </div>
+    </div>
+  {% endcall %}
+</div>
+{% endif %}
+
+<div class="grade" style="margin-top:16px">
   {% call cartao("Relatório da limpeza",
        leitura="A limpeza remove as linhas repetidas, troca os textos que significam \"sem registro\" por valores vazios, padroniza o traçado e invalida as coordenadas fora do Brasil.",
        limite="As coordenadas inválidas ficam vazias. A limpeza não tenta adivinhar o valor correto.") %}
@@ -52,5 +84,4 @@
     </div>
   {% endcall %}
 </div>
-{% endif %}
 {% endblock %}

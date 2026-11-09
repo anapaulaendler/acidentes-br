@@ -1,22 +1,30 @@
 {% extends "base.html" %}
 {% from "_cartao.html" import cartao %}
-{% from "_aviso_trechos.html" import aviso_trechos %}
 {% block conteudo %}
 <header class="cabecalho">
   <h1>Modelos</h1>
-  <p>Cada modelo responde a uma pergunta sobre a hipótese. Os modelos treinam com a base carregada e com a configuração padrão.</p>
+  <p>Cada modelo responde a uma pergunta sobre a hipótese. Os modelos já estão treinados: a app usa os pesos salvos, e os filtros da barra lateral não mudam os modelos.</p>
 </header>
+
+{% if modelos is none %}
+<section class="cartao largo">
+  <h3>Os modelos ainda não foram treinados</h3>
+  <p>Rode <code>python3 -m scripts.treinar_modelos</code> na raiz do projeto e reinicie a app.</p>
+</section>
+{% else %}
+<p class="nota">Treinados em {{ modelos.treinado_em.strftime('%d/%m/%Y %H:%M') }} com {{ modelos.base }}: {{ modelos.acidentes|num(0) }} acidentes ({{ modelos.anos }}).
+  {% if base_atual != modelos.acidentes %}A base atual tem {{ base_atual|num(0) }} acidentes: os dados adicionados entram no próximo treino (<code>python3 -m scripts.treinar_modelos</code>).{% endif %}</p>
 
 <div class="grade">
   {% call cartao("Regressão linear múltipla", limite="Associação, não causa. O valor do efeito depende do método (veja a sensibilidade na tela Condições).") %}
-    <span class="status">feito</span>
+    <span class="status">treinado</span>
     <dl class="ficha">
       <dt>Pergunta</dt><dd>Com os outros fatores iguais, um trecho com mais pista simples tem uma letalidade mais alta?</dd>
       {% if regressao %}
       <dt>Dados</dt><dd>{{ regressao.trechos|num(0) }} trechos (UF + BR + 5 km) com pelo menos 30 acidentes. {{ variaveis_regressao }} variáveis: porcentagens do perfil, volume e região (one-hot).</dd>
       <dt>Resultado</dt><dd>
         {% if efeito_simples %}Pista simples de 0% a 100%: <b>{{ efeito_simples }} pp</b> de letalidade{% if intervalo_simples %} (intervalo de {{ intervalo_simples }} na sensibilidade){% endif %}.
-        {% else %}Com o filtro de pista, todos os trechos têm o mesmo tipo de pista: a regressão não mede o efeito da pista.{% endif %}
+        {% else %}Todos os trechos têm o mesmo tipo de pista: a regressão não mede o efeito da pista.{% endif %}
         R² de teste {{ r2_regressao }}, MAE {{ mae_regressao }} pp.</dd>
       {% endif %}
     </dl>
@@ -24,48 +32,21 @@
       {{ regressao.metricas|tabela(3) }}
       <p class="nota"><a href="{{ url_for('condicoes.tela', **filtros_atuais.como_dict()) }}">Ver os coeficientes e a sensibilidade em Condições →</a></p>
     {% else %}
-      {{ aviso_trechos(trechos_validos, minimo_regressao) }}
+      <p class="limite">A base do treino não tinha trechos suficientes com pelo menos 30 acidentes.</p>
     {% endif %}
   {% endcall %}
 
-  {% call cartao("K-Means dos trechos", limite="A silhueta é baixa: os grupos resumem perfis contínuos, sem fronteiras nítidas.") %}
-    <span class="status">feito</span>
-    <dl class="ficha">
-      <dt>Pergunta</dt><dd>Dentro de um grupo de trechos parecidos, a pista simples ainda tem uma letalidade mais alta?</dd>
-      {% if kmeans %}
-      <dt>Dados</dt><dd>{{ trechos_kmeans|num(0) }} trechos. 7 variáveis do perfil (log nas contagens, depois Z-Score). A pista e a letalidade ficam fora.</dd>
-      <dt>Resultado</dt><dd>K = 4 (silhueta {{ silhueta_k }}). Diferença simples − dupla por persona:
-        {% for persona, diferenca in diferencas.items() %}{{ persona }}: <b>{{ diferenca|num }} pp</b>{{ "; " if not loop.last else "." }}{% endfor %}</dd>
-      {% endif %}
-    </dl>
-    {% if kmeans %}
-      <div class="dois"><div>{{ grafico_inercia }}</div><div>{{ grafico_silhueta }}</div></div>
-      <p class="nota">A app usa K = 4, a escolha do notebook para a base completa. Com a base atual, a maior silhueta está em K = {{ k_maior_silhueta }}.
-        <a href="{{ url_for('onde.tela', **filtros_atuais.como_dict()) }}">Ver as personas em Onde? →</a></p>
-    {% else %}
-      {{ aviso_trechos(trechos_validos, minimo_kmeans) }}
-    {% endif %}
-  {% endcall %}
-
-  {% if metricas_classificacao is none %}
-  {% call cartao("Classificadores: Regressão logística e MLP (scikit-learn)", largo=True) %}
-    <p class="limite">A base atual tem {{ fatais_base|num(0) }} acidentes fatais. Os classificadores precisam de pelo menos {{ minimo_fatais }}, e também de acidentes não fatais. Carregue uma base maior ou limpe os filtros.</p>
-  {% endcall %}
-  {% else %}
-  {% call cartao("Classificadores: Regressão logística e MLP (scikit-learn)",
-       leitura=leitura_classificacao,
-       limite="Divisão aleatória de 80% para o treino e 20% para o teste, estratificada pela classe fatal. Limiar de decisão: 0,5.",
-       largo=True) %}
-    <span class="status">no catálogo</span>
+  {% call cartao("Classificador: MLP (scikit-learn)",
+       leitura=leitura_classificador,
+       limite="Divisão aleatória de 80% para o treino e 20% para o teste, estratificada pela classe fatal. Limiar de decisão: 0,5.") %}
+    <span class="status">treinado</span>
     <dl class="ficha">
       <dt>Pergunta</dt><dd>Um modelo consegue prever se um acidente vai ser fatal, com as condições do acidente (sem as colunas de vítimas)?</dd>
-      <dt>Dados</dt><dd>{{ linhas_classificacao|num(0) }} acidentes{% if amostrou %} (amostra estratificada da base, para o treino levar poucos segundos){% endif %}. Variáveis: UF, BR, dia, causa, tipo de acidente, fase do dia, sentido, clima, pista, traçado, uso do solo, km, pessoas e veículos.</dd>
-      {% if odds %}<dt>Hipótese</dt><dd>Na regressão logística, com as outras variáveis fixas, a razão de chances (odds ratio) de um acidente fatal na pista simples contra a pista dupla é <b>{{ odds }}</b>.
-        O modelo também recebe o tipo de acidente. Como a colisão frontal é o mecanismo da pista simples, parte do efeito da pista fica no tipo de acidente.</dd>{% endif %}
+      <dt>Dados</dt><dd>{{ modelos.linhas_classificador|num(0) }} acidentes. Variáveis: UF, BR, dia, causa, tipo de acidente, fase do dia, sentido, clima, pista, traçado, uso do solo, km, pessoas e veículos.</dd>
     </dl>
-    {{ metricas_classificacao|tabela(3) }}
+    {{ metricas_classificador|tabela(3) }}
+    <p class="nota"><a href="{{ url_for('dados.tela', **filtros_atuais.como_dict()) }}">Na tela Dados, um arquivo adicionado é comparado com o desempenho deste modelo →</a></p>
   {% endcall %}
-  {% endif %}
 
   {% call cartao("Rede com embeddings (PyTorch)", largo=True) %}
     <span class="status andamento">em andamento</span>
@@ -75,4 +56,5 @@
     </dl>
   {% endcall %}
 </div>
+{% endif %}
 {% endblock %}

@@ -18,6 +18,8 @@ def criar_app() -> Flask:
     app.secret_key = "acidentes-prf-demonstracao-local"
     app.config["MAX_CONTENT_LENGTH"] = LIMITE_UPLOAD_MB * 1024 * 1024
 
+    estado.iniciar()
+
     from app.telas import TELAS, condicoes, dados, hipotese, modelos, onde, quando
 
     for modulo in (hipotese, quando, onde, condicoes, modelos, dados):

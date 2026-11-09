@@ -5,6 +5,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from analises.limpeza_relatorio import causas_por_ano, proporcao_grupos_por_ano, relatorio_limpeza
 from app import estado, filtros, graficos
+from app.formato import num, pct
 from validar import ErroDeColunas, ErroDeFormato
 
 bp = Blueprint("dados", __name__, url_prefix="/dados")
@@ -18,18 +19,39 @@ COLUNAS_TABELA = ["data_inversa", "horario", "uf", "br", "km", "municipio", "cau
 ERROS_DE_LEITURA = (ErroDeColunas, ErroDeFormato, ValueError, ParseError, pd.errors.ParserError, UnicodeDecodeError, KeyError)
 
 
-def _resultado_da_leitura() -> None:
-    base = estado.base()
-    removidas = len(base.bruto) - len(base.limpo)
-    flash(f"Base carregada: {base.nome}. {len(base.limpo):,} acidentes depois da limpeza ({removidas} linhas repetidas removidas).".replace(",", "."), "sucesso")
+# a diferença (em pontos percentuais) a partir da qual o lote novo foge do padrão da base
+DIFERENCA_RELEVANTE_PP = 2
+DIFERENCA_RELEVANTE_RECALL = 0.10
+
+
+def _perfil_formatado(perfil):
+    return perfil.map(lambda v: (pct(v) if v == v else "–") if isinstance(v, float) else v)
+
+
+def _leitura_comparacao(comparacao) -> str:
+    base, novos = comparacao.perfil["base antes do envio"], comparacao.perfil["dados novos"]
+    diferenca = novos["% fatais"] - base["% fatais"]
+    if abs(diferenca) < DIFERENCA_RELEVANTE_PP:
+        texto = f"Os dados novos têm uma letalidade parecida com a da base ({pct(novos['% fatais'])} contra {pct(base['% fatais'])})."
+    else:
+        texto = (f"Os dados novos têm uma letalidade {'mais alta' if diferenca > 0 else 'mais baixa'} que a da base "
+                 f"({pct(novos['% fatais'])} contra {pct(base['% fatais'])}).")
+
+    if comparacao.modelo is not None:
+        recall_teste, recall_novos = comparacao.modelo.loc["recall"]
+        if abs(recall_novos - recall_teste) < DIFERENCA_RELEVANTE_RECALL:
+            texto += (f" O modelo treinado encontra {pct(recall_novos * 100)} dos fatais dos dados novos, perto dos {pct(recall_teste * 100)} do teste: "
+                      "os dados novos seguem o padrão dos dados de treino.")
+        else:
+            texto += (f" O modelo treinado encontra {pct(recall_novos * 100)} dos fatais dos dados novos, contra {pct(recall_teste * 100)} no teste: "
+                      "os dados novos fogem do padrão dos dados de treino, e um novo treino pode mudar o modelo.")
+    return texto
 
 
 @bp.get("")
 def tela():
     base = estado.base()
-    if base is None:
-        return render_template("dados.html", tem_base_completa=estado.tem_base_completa())
-
+    comparacao = estado.ultima_comparacao()
     selecao = filtros.ler(request.args)
     df = filtros.aplicar(base.limpo, selecao)
 
@@ -45,7 +67,10 @@ def tela():
 
     return render_template(
         "dados.html",
-        tem_base_completa=estado.tem_base_completa(),
+        comparacao=comparacao,
+        perfil_comparacao=_perfil_formatado(comparacao.perfil) if comparacao else None,
+        leitura_comparacao=_leitura_comparacao(comparacao) if comparacao else None,
+        modelos=estado.modelos(),
         relatorio=relatorio,
         grafico_causas=graficos.barras(causas.rename(index=str), "Causas diferentes", sufixo="", casas=0),
         maximo_causas=causas.max(),
@@ -68,24 +93,23 @@ def upload():
 
     formato = arquivo.filename.rsplit(".", 1)[-1].lower() if "." in arquivo.filename else ""
     try:
-        estado.carregar_base(arquivo.stream, arquivo.filename, formato)
+        comparacao = estado.adicionar(arquivo.read(), arquivo.filename, formato)
     except ERROS_DE_LEITURA as erro:
-        flash(f"O arquivo não foi carregado. {erro}", "erro")
+        flash(f"O arquivo não foi adicionado. {erro}", "erro")
         return redirect(url_for("dados.tela"))
 
-    _resultado_da_leitura()
+    repetidas = comparacao.linhas_arquivo - comparacao.linhas_novas
+    if not comparacao.linhas_novas:
+        flash(f"{comparacao.arquivo} não mudou a base: os {num(repetidas, 0)} acidentes do arquivo já estavam nela.", "aviso")
+        return redirect(url_for("dados.tela"))
+
+    flash(f"{comparacao.arquivo} adicionado à base: {num(comparacao.linhas_novas, 0)} acidentes novos"
+          + (f" ({num(repetidas, 0)} já estavam na base)." if repetidas else "."), "sucesso")
     return redirect(url_for("dados.tela"))
 
 
-@bp.post("/amostra")
-def amostra():
-    estado.carregar_base(estado.AMOSTRA, "Amostra PR 2024")
-    _resultado_da_leitura()
-    return redirect(url_for("dados.tela"))
-
-
-@bp.post("/completa")
-def completa():
-    estado.carregar_base_completa()
-    _resultado_da_leitura()
+@bp.post("/remover-adicionados")
+def remover_adicionados():
+    estado.remover_adicionados()
+    flash("Os arquivos adicionados foram removidos. A base voltou a ser a base inicial.", "sucesso")
     return redirect(url_for("dados.tela"))
