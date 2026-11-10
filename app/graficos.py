@@ -86,3 +86,15 @@ def pizza(serie: pd.Series, altura: int = 320) -> Markup:
     fig = go.Figure(go.Pie(labels=[str(r) for r in serie.index], values=serie.values, hole=0.45, sort=False,
                            marker=dict(colors=CORES_SERIE, line=dict(color="white", width=2))))
     return html(_layout(fig, altura=altura))
+
+
+def dispersao_previsto(real: pd.Series, previsto, altura: int = 360) -> Markup:
+    limite = float(max(real.max(), previsto.max()))
+    fig = go.Figure()
+    fig.add_scatter(x=real, y=previsto, mode="markers", marker=dict(color=AZUL, size=6, opacity=0.4),
+                    name="trechos (validação cruzada)", hovertemplate="real %{x:.1f}%<br>prevista %{y:.1f}%<extra></extra>")
+    fig.add_scatter(x=[0, limite], y=[0, limite], mode="lines", line=dict(color=CINZA_TEXTO, dash="dash", width=1),
+                    name="previsão = real", hoverinfo="skip")
+    fig = _layout(fig, "Letalidade prevista (%)", altura)
+    fig.update_xaxes(title="Letalidade real (%)")
+    return html(fig)

@@ -8,6 +8,8 @@ import joblib
 import pandas as pd
 from sklearn.base import BaseEstimator
 
+from modelos.regressao_trechos import ResultadoRegressao
+
 PASTA = Path(__file__).resolve().parents[2] / "modelos_treinados"
 ARQUIVO = PASTA / "modelos.joblib"
 
@@ -20,6 +22,7 @@ class ModelosTreinados:
     base: str
     acidentes: int
     anos: str
+    regressao: ResultadoRegressao | None
     classificador: BaseEstimator
     metricas_fatias: pd.DataFrame  # uma linha por fatia da validação cruzada
     linhas_classificador: int

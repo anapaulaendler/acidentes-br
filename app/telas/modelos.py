@@ -2,10 +2,27 @@ from flask import Blueprint, render_template
 
 from analises.comparacao import NOMES_METRICAS
 from app import estado
-from app.formato import pct
+from app.formato import num, pct
 from app.telas import com_base_filtrada
 
 bp = Blueprint("modelos", __name__)
+
+
+def _contexto_regressao(resultado) -> dict:
+    if resultado is None:
+        return {"regressao": None}
+
+    validacao = resultado.metricas.loc["validação cruzada"]
+    sensibilidade = resultado.sensibilidade["pista simples 0% → 100% (pp)"].dropna()
+    efeito = resultado.coeficientes.loc["pct_pista_simples", "efeito de 0% → 100%"]
+    return {
+        "regressao": resultado,
+        "variaveis_regressao": len(resultado.coeficientes),
+        "efeito_simples": None if efeito != efeito else f"{'+' if efeito >= 0 else ''}{num(efeito)}",
+        "intervalo_simples": f"{num(sensibilidade.min())} a {num(sensibilidade.max())} pp" if len(sensibilidade) else None,
+        "r2_regressao": num(validacao["R²"], 2),
+        "mae_regressao": num(validacao["MAE"], 2),
+    }
 
 
 def _contexto_classificador(modelos) -> dict:
@@ -32,6 +49,7 @@ def tela(df, selecao):
         return render_template("modelos.html", modelos=None)
 
     contexto = {"modelos": modelos, "base_atual": len(estado.base().limpo)}
+    contexto.update(_contexto_regressao(modelos.regressao))
     contexto.update(_contexto_classificador(modelos))
 
     return render_template("modelos.html", **contexto)

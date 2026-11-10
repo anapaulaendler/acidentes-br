@@ -11,8 +11,9 @@ import pandas as pd
 
 from app import estado
 from avaliacao import FATIAS, montar_features, validacao_cruzada
-from modelos import treinados
+from modelos import regressao_trechos, treinados
 from modelos.treino import treinar
+from trechos import montar_trechos
 
 
 def main() -> None:
@@ -20,6 +21,9 @@ def main() -> None:
     base = estado.iniciar(com_modelos=False)
     df = base.limpo
     print(f"{base.nome} + {base.arquivos_adicionados} arquivo(s) adicionado(s): {len(df):,} acidentes")
+
+    print("Treinando a regressão por trecho...")
+    regressao = regressao_trechos.ajustar(montar_trechos(df))
 
     print(f"Validação cruzada do {treinados.CLASSIFICADOR} ({FATIAS} fatias)...")
     por_fatia = validacao_cruzada(treinados.CLASSIFICADOR, df)
@@ -33,6 +37,7 @@ def main() -> None:
         base=base.nome,
         acidentes=len(df),
         anos=f"{df['ano'].min()}–{df['ano'].max()}",
+        regressao=regressao,
         classificador=classificador,
         metricas_fatias=por_fatia,
         linhas_classificador=len(df),
