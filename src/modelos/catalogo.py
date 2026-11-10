@@ -1,9 +1,7 @@
 from dataclasses import dataclass
-from functools import partial
 from typing import Callable, Literal
 
 from sklearn.base import BaseEstimator
-from sklearn.linear_model import LogisticRegression
 
 
 @dataclass(frozen=True)
@@ -59,12 +57,3 @@ def criar_modelo(nome: str, **params) -> BaseEstimator:
 
     return modelo.construtor(**valores)
 
-
-registrar(ModeloRegistrado(
-    nome="Regressão logística",
-    construtor=partial(LogisticRegression, max_iter=1000),
-    hiperparametros=(
-        Hiperparametro("C", "float", padrao=1.0, minimo=0.01, maximo=100),
-        Hiperparametro("class_weight", "escolha", padrao="balanced", opcoes=(None, "balanced")),
-    ),
-))

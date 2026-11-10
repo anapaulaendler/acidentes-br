@@ -3,7 +3,7 @@
 {% block conteudo %}
 <header class="cabecalho">
   <h1>Condições</h1>
-  <p>Em que condições um acidente é mais grave, e o efeito da pista simples quando as outras condições ficam iguais.</p>
+  <p>Em que condições um acidente é mais grave.</p>
 </header>
 
 <div class="grade">
@@ -21,30 +21,5 @@
     {{ grafico_tracado }}
   {% endcall %}
 
-  {% if tem_regressao %}
-  {% call cartao("Regressão por trecho: o efeito de cada condição na letalidade",
-       leitura=leitura_regressao,
-       limite="A regressão mostra uma associação, não uma causa. As rodovias duplicadas também podem ter melhor sinalização e iluminação.",
-       largo=True) %}
-    <p class="nota">Modelo treinado em {{ modelos.treinado_em.strftime('%d/%m/%Y') }} com {{ modelos.base }} ({{ modelos.anos }}): os filtros da barra lateral não mudam a regressão.
-      Unidade: o trecho (UF + BR + faixa de 5 km), com pelo menos 30 acidentes ({{ regressao_trechos|num(0) }} trechos).
-      Alvo: a letalidade do trecho (% dos acidentes com morte). Cada barra compara um trecho onde nenhum acidente tem a característica com um trecho onde todos têm.</p>
-    {{ grafico_coeficientes }}
-  {% endcall %}
-
-  {% call cartao("Qualidade da regressão", leitura=leitura_metricas) %}
-    {{ metricas|tabela(3) }}
-    {{ grafico_previsto }}
-  {% endcall %}
-
-  {% call cartao("Sensibilidade do efeito da pista simples", leitura=leitura_sensibilidade,
-       limite="Com o peso igual ao número de acidentes, os trechos grandes (na maioria, corredores urbanos) pesam mais, e o efeito diminui.") %}
-    <div class="rolagem">{{ sensibilidade|tabela(3) }}</div>
-  {% endcall %}
-  {% else %}
-  {% call cartao("Regressão por trecho", largo=True) %}
-    <p class="limite">A regressão ainda não foi treinada. Rode <code>python3 -m scripts.treinar_modelos</code> e reinicie a app.</p>
-  {% endcall %}
-  {% endif %}
 </div>
 {% endblock %}

@@ -1,31 +1,14 @@
 from flask import Blueprint, render_template
 
 from analises.letalidade import letalidade_por
-from app import estado, graficos
-from app.formato import num, pct
+from app import graficos
+from app.formato import pct
 from app.telas import com_base_filtrada
-from modelos import regressao_trechos
 
 bp = Blueprint("condicoes", __name__)
 
 # categorias com poucos acidentes têm uma letalidade instável; ficam fora dos gráficos
 MINIMO_CATEGORIA = 30
-
-NOMES_VARIAVEIS = {
-    "pct_pista_simples": "% pista simples",
-    "pct_curva": "% curva",
-    "pct_noite": "% noite",
-    "pct_chuva": "% chuva",
-    "pct_urbano": "% urbano",
-    "pct_velocidade": "% causa: velocidade",
-    "pct_alcool": "% causa: álcool e drogas",
-    "pct_pedestre": "% causa: pedestre",
-    "acidentes_por_ano": "acidentes por ano",
-    "regiao_Nordeste": "região: Nordeste",
-    "regiao_Norte": "região: Norte",
-    "regiao_Sudeste": "região: Sudeste",
-    "regiao_Sul": "região: Sul",
-}
 
 
 def _ordenada(tabela):
@@ -48,41 +31,9 @@ def _leitura_clima(por_clima) -> str:
     return texto
 
 
-SEM_EFEITO_DA_PISTA = ("Na base do treino, todos os trechos têm o mesmo tipo de pista: a regressão não mede o efeito da pista. "
-                       "Os outros coeficientes continuam válidos.")
-
-
-def _contexto_regressao(resultado) -> dict:
-    efeito = resultado.coeficientes.loc["pct_pista_simples", "efeito de 0% → 100%"]
-    sensibilidade = resultado.sensibilidade["pista simples 0% → 100% (pp)"].dropna()
-    validacao = resultado.metricas.loc["validação cruzada"]
-    base = resultado.metricas.loc["base (média) na validação"]
-
-    efeitos = resultado.coeficientes["efeito de 0% → 100%"].dropna().rename(index=NOMES_VARIAVEIS).sort_values(ascending=False)
-
-    return {
-        "regressao_trechos": resultado.trechos,
-        "grafico_coeficientes": graficos.barras(efeitos, "Efeito na letalidade (pp)", sufixo=" pp", horizontal=True, altura=360),
-        "coeficientes": resultado.coeficientes.rename(index=NOMES_VARIAVEIS),
-        "grafico_previsto": graficos.dispersao_previsto(resultado.real, resultado.previsto),
-        "metricas": resultado.metricas,
-        "sensibilidade": resultado.sensibilidade.set_index(["mínimo", "peso"]),
-        "leitura_regressao": SEM_EFEITO_DA_PISTA if efeito != efeito else (
-            f"Com os outros fatores iguais, um trecho só com pista simples tem {num(efeito)} pp a mais de letalidade "
-            f"que um trecho sem pista simples."),
-        "leitura_metricas": (f"Na validação cruzada ({regressao_trechos.FATIAS} fatias), o erro médio (MAE) é {num(validacao['MAE'], 2)} pp, contra {num(base['MAE'], 2)} pp de um modelo que sempre "
-                             f"prevê a média. O R² é {num(validacao['R²'], 2)}: o modelo explica parte da variação, mas muitos fatores não estão na base."),
-        "leitura_sensibilidade": SEM_EFEITO_DA_PISTA if sensibilidade.empty else (
-            ("O efeito da pista simples é positivo em todas as combinações. " if (sensibilidade > 0).all()
-             else "O efeito da pista simples muda de sinal em algumas combinações. ")
-            + f"O valor varia de {num(sensibilidade.min())} a {num(sensibilidade.max())} pp, conforme o mínimo de acidentes e o peso. "
-            "Por isso, o efeito é um intervalo, não um único número."),
-    }
-
-
 @bp.get("/condicoes")
 @com_base_filtrada
-def tela(df, selecao):
+def tela(df, _selecao):
     por_clima = _ordenada(letalidade_por(df, "condicao_metereologica"))
     por_causa = _ordenada(letalidade_por(df, "grupo_causa"))
     tracado = df.assign(parte=df["tracado_via"].str.split(";")).explode("parte")
@@ -95,12 +46,6 @@ def tela(df, selecao):
         "leitura_causas": _leitura_causas(por_causa) if len(por_causa) else None,
         "grafico_tracado": graficos.barras(por_tracado, "% dos acidentes que são fatais"),
         "minimo_categoria": MINIMO_CATEGORIA,
-        "modelos": estado.modelos(),
     }
-
-    resultado = estado.modelos().regressao if estado.modelos() else None
-    if resultado is not None:
-        contexto.update(_contexto_regressao(resultado))
-    contexto["tem_regressao"] = resultado is not None
 
     return render_template("condicoes.html", **contexto)
