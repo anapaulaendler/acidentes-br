@@ -5,7 +5,7 @@ import pandas as pd
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold
 from sklearn.pipeline import Pipeline
 
 MINIMO_ACIDENTES = 30
@@ -16,14 +16,16 @@ COLUNAS_PCT = ["pct_pista_simples", "pct_curva", "pct_noite", "pct_chuva", "pct_
 
 MINIMOS_SENSIBILIDADE = [10, 30, 50, 100]
 
+FATIAS = 5
+
 
 @dataclass(frozen=True)
 class ResultadoRegressao:
     trechos: int
     coeficientes: pd.DataFrame
     metricas: pd.DataFrame
-    real: pd.Series
-    previsto: np.ndarray
+    real: pd.Series  # todos os trechos
+    previsto: np.ndarray  # cada trecho previsto pelo modelo da rodada em que ele ficou no teste
     sensibilidade: pd.DataFrame
 
 
@@ -50,6 +52,20 @@ def _pista_varia(trechos: pd.DataFrame) -> bool:
     return trechos["pct_pista_simples"].nunique() > 1
 
 
+def _validacao_cruzada(X: pd.DataFrame, y: pd.Series, peso: pd.Series | None = None) -> tuple[np.ndarray, np.ndarray]:
+    """Cada trecho é previsto pelo modelo que treinou sem ele. Devolve essa previsão e a da base (a média do treino)."""
+    previsto = np.empty(len(y))
+    media = np.empty(len(y))
+
+    for treino, teste in KFold(n_splits=FATIAS, shuffle=True, random_state=2903).split(X):
+        peso_treino = None if peso is None else peso.iloc[treino]
+        modelo = _pipeline().fit(X.iloc[treino], y.iloc[treino], regressao__sample_weight=peso_treino)
+        previsto[teste] = modelo.predict(X.iloc[teste])
+        media[teste] = y.iloc[treino].mean()
+
+    return previsto, media
+
+
 def _sensibilidade(trechos: pd.DataFrame) -> pd.DataFrame:
     linhas = []
 
@@ -58,23 +74,20 @@ def _sensibilidade(trechos: pd.DataFrame) -> pd.DataFrame:
         if len(selecao) < MINIMO_TRECHOS:
             continue
 
-        X = _variaveis(selecao)
-        X_tr, X_te, y_tr, y_te, peso_tr, peso_te = train_test_split(
-            X, selecao["letalidade_trecho"], selecao["acidentes"], test_size=0.2, random_state=2903
-        )
+        X, y, acidentes = _variaveis(selecao), selecao["letalidade_trecho"], selecao["acidentes"]
 
-        for nome_peso, peso in [("igual", None), ("nº de acidentes", peso_tr)]:
-            modelo = _pipeline().fit(X_tr, y_tr, regressao__sample_weight=peso)
-            previsto = modelo.predict(X_te)
+        for nome_peso, peso in [("igual", None), ("nº de acidentes", acidentes)]:
+            previsto, _ = _validacao_cruzada(X, y, peso)
+            modelo = _pipeline().fit(X, y, regressao__sample_weight=peso)
             beta = modelo.named_steps["regressao"].coef_[X.columns.get_loc("pct_pista_simples")] if _pista_varia(selecao) else np.nan
 
             linhas.append({
                 "mínimo": minimo,
                 "peso": nome_peso,
                 "trechos": len(selecao),
-                "MAE teste": mean_absolute_error(y_te, previsto),
-                "R² teste": r2_score(y_te, previsto),
-                "R² ponderado teste": r2_score(y_te, previsto, sample_weight=peso_te),
+                "MAE validação": mean_absolute_error(y, previsto),
+                "R² validação": r2_score(y, previsto),
+                "R² ponderado validação": r2_score(y, previsto, sample_weight=acidentes),
                 "pista simples 0% → 100% (pp)": beta * 100,
             })
 
@@ -88,15 +101,15 @@ def ajustar(trechos: pd.DataFrame, minimo: int = MINIMO_ACIDENTES) -> ResultadoR
 
     X = _variaveis(selecao)
     y = selecao["letalidade_trecho"]
-    X_treino, X_teste, y_treino, y_teste = train_test_split(X, y, test_size=0.2, random_state=2903)
 
-    modelo = _pipeline().fit(X_treino, y_treino)
-    previsto = modelo.predict(X_teste)
+    previsto, media = _validacao_cruzada(X, y)
+    # o modelo final treina com todos os trechos; a validação cruzada mede como ele se sai em trechos que não viu
+    modelo = _pipeline().fit(X, y)
 
     metricas = pd.DataFrame({
-        "treino": _metricas(y_treino, modelo.predict(X_treino)),
-        "teste": _metricas(y_teste, previsto),
-        "base (média) no teste": _metricas(y_teste, np.full(len(y_teste), y_treino.mean())),
+        "treino (todos os trechos)": _metricas(y, modelo.predict(X)),
+        "validação cruzada": _metricas(y, previsto),
+        "base (média) na validação": _metricas(y, media),
     }).T
 
     coeficientes = pd.DataFrame({"β": modelo.named_steps["regressao"].coef_}, index=X.columns)
@@ -109,7 +122,7 @@ def ajustar(trechos: pd.DataFrame, minimo: int = MINIMO_ACIDENTES) -> ResultadoR
         trechos=len(selecao),
         coeficientes=coeficientes,
         metricas=metricas,
-        real=y_teste,
+        real=y,
         previsto=previsto,
         sensibilidade=_sensibilidade(trechos),
     )

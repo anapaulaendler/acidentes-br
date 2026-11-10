@@ -18,7 +18,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 PASTA_RAW = RAIZ / "data" / "raw"
 PASTA_ADICIONADOS = RAIZ / "data" / "adicionados"
 AMOSTRA = RAIZ / "data" / "amostras" / "acidentes_pr_2024.csv"
-ANOS_BASE_COMPLETA = range(2017, 2026)
+ANOS_BASE_COMPLETA = range(2017, 2027)
 
 
 @dataclass(frozen=True)
@@ -80,7 +80,7 @@ def tem_base_completa() -> bool:
 def _base_inicial() -> tuple[str, pd.DataFrame]:
     if tem_base_completa():
         partes = [carregar(PASTA_RAW / f"datatran{ano}.csv") for ano in ANOS_BASE_COMPLETA]
-        return "Base completa PRF 2017–2025", pd.concat(partes, ignore_index=True)
+        return f"Base completa PRF {ANOS_BASE_COMPLETA[0]}–{ANOS_BASE_COMPLETA[-1]}", pd.concat(partes, ignore_index=True)
 
     return "Amostra PR 2024", carregar(AMOSTRA)
 

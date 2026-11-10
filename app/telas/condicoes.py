@@ -4,6 +4,7 @@ from analises.letalidade import letalidade_por
 from app import estado, graficos
 from app.formato import num, pct
 from app.telas import com_base_filtrada
+from modelos import regressao_trechos
 
 bp = Blueprint("condicoes", __name__)
 
@@ -54,8 +55,8 @@ SEM_EFEITO_DA_PISTA = ("Na base do treino, todos os trechos têm o mesmo tipo de
 def _contexto_regressao(resultado) -> dict:
     efeito = resultado.coeficientes.loc["pct_pista_simples", "efeito de 0% → 100%"]
     sensibilidade = resultado.sensibilidade["pista simples 0% → 100% (pp)"].dropna()
-    teste = resultado.metricas.loc["teste"]
-    base = resultado.metricas.loc["base (média) no teste"]
+    validacao = resultado.metricas.loc["validação cruzada"]
+    base = resultado.metricas.loc["base (média) na validação"]
 
     efeitos = resultado.coeficientes["efeito de 0% → 100%"].dropna().rename(index=NOMES_VARIAVEIS).sort_values(ascending=False)
 
@@ -69,8 +70,8 @@ def _contexto_regressao(resultado) -> dict:
         "leitura_regressao": SEM_EFEITO_DA_PISTA if efeito != efeito else (
             f"Com os outros fatores iguais, um trecho só com pista simples tem {num(efeito)} pp a mais de letalidade "
             f"que um trecho sem pista simples."),
-        "leitura_metricas": (f"No teste, o erro médio (MAE) é {num(teste['MAE'], 2)} pp, contra {num(base['MAE'], 2)} pp de um modelo que sempre "
-                             f"prevê a média. O R² é {num(teste['R²'], 2)}: o modelo explica parte da variação, mas muitos fatores não estão na base."),
+        "leitura_metricas": (f"Na validação cruzada ({regressao_trechos.FATIAS} fatias), o erro médio (MAE) é {num(validacao['MAE'], 2)} pp, contra {num(base['MAE'], 2)} pp de um modelo que sempre "
+                             f"prevê a média. O R² é {num(validacao['R²'], 2)}: o modelo explica parte da variação, mas muitos fatores não estão na base."),
         "leitura_sensibilidade": SEM_EFEITO_DA_PISTA if sensibilidade.empty else (
             ("O efeito da pista simples é positivo em todas as combinações. " if (sensibilidade > 0).all()
              else "O efeito da pista simples muda de sinal em algumas combinações. ")

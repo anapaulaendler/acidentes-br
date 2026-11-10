@@ -92,7 +92,7 @@ def dispersao_previsto(real: pd.Series, previsto, altura: int = 360) -> Markup:
     limite = float(max(real.max(), previsto.max()))
     fig = go.Figure()
     fig.add_scatter(x=real, y=previsto, mode="markers", marker=dict(color=AZUL, size=6, opacity=0.4),
-                    name="trechos do teste", hovertemplate="real %{x:.1f}%<br>prevista %{y:.1f}%<extra></extra>")
+                    name="trechos (validação cruzada)", hovertemplate="real %{x:.1f}%<br>prevista %{y:.1f}%<extra></extra>")
     fig.add_scatter(x=[0, limite], y=[0, limite], mode="lines", line=dict(color=CINZA_TEXTO, dash="dash", width=1),
                     name="previsão = real", hoverinfo="skip")
     fig = _layout(fig, "Letalidade prevista (%)", altura)

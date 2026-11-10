@@ -25,7 +25,7 @@
       <dt>Resultado</dt><dd>
         {% if efeito_simples %}Pista simples de 0% a 100%: <b>{{ efeito_simples }} pp</b> de letalidade{% if intervalo_simples %} (intervalo de {{ intervalo_simples }} na sensibilidade){% endif %}.
         {% else %}Todos os trechos têm o mesmo tipo de pista: a regressão não mede o efeito da pista.{% endif %}
-        R² de teste {{ r2_regressao }}, MAE {{ mae_regressao }} pp.</dd>
+        Na validação cruzada: R² {{ r2_regressao }}, MAE {{ mae_regressao }} pp.</dd>
       {% endif %}
     </dl>
     {% if regressao %}
@@ -38,13 +38,14 @@
 
   {% call cartao("Classificador: MLP (scikit-learn)",
        leitura=leitura_classificador,
-       limite="Divisão aleatória de 80% para o treino e 20% para o teste, estratificada pela classe fatal. Limiar de decisão: 0,5.") %}
+       limite="Validação cruzada em " ~ fatias ~ " fatias aleatórias, estratificadas pela classe fatal: cada fatia é o teste uma vez, e as outras treinam. O modelo salvo treina com a base toda. Limiar de decisão: 0,5.",
+       largo=True) %}
     <span class="status">treinado</span>
     <dl class="ficha">
       <dt>Pergunta</dt><dd>Um modelo consegue prever se um acidente vai ser fatal, com as condições do acidente (sem as colunas de vítimas)?</dd>
       <dt>Dados</dt><dd>{{ modelos.linhas_classificador|num(0) }} acidentes. Variáveis: UF, BR, dia, causa, tipo de acidente, fase do dia, sentido, clima, pista, traçado, uso do solo, km, pessoas e veículos.</dd>
     </dl>
-    {{ metricas_classificador|tabela(3) }}
+    <div class="rolagem">{{ metricas_classificador|tabela(3) }}</div>
     <p class="nota"><a href="{{ url_for('dados.tela', **filtros_atuais.como_dict()) }}">Na tela Dados, um arquivo adicionado é comparado com o desempenho deste modelo →</a></p>
   {% endcall %}
 

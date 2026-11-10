@@ -1,11 +1,14 @@
 from dataclasses import dataclass
 from sklearn.metrics import accuracy_score, average_precision_score, f1_score, precision_score, recall_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold
 from colunas import ALVO, VAZAMENTO
 from modelos.treino import treinar
 
 import numpy as np
 import pandas as pd
+
+
+FATIAS = 5
 
 @dataclass(frozen=True)
 class Divisao:
@@ -27,6 +30,19 @@ def dividir_treino_teste(df: pd.DataFrame) -> Divisao:
         raise ValueError("A base de treino está sem acidentes fatais.")
 
     return Divisao(treino=treino, teste=teste)
+
+
+def validacao_cruzada(nome: str, df: pd.DataFrame, fatias: int = FATIAS) -> pd.DataFrame:
+    df = montar_features(df)
+    divisor = StratifiedKFold(n_splits=fatias, shuffle=True, random_state=2903)
+
+    linhas = []
+    for indices_treino, indices_teste in divisor.split(df, df[ALVO]):
+        treino, teste = df.iloc[indices_treino], df.iloc[indices_teste]
+        modelo = treinar(nome, treino)
+        linhas.append(metricas(teste[ALVO], modelo.predict_proba(teste)[:, 1]))
+
+    return pd.DataFrame(linhas)  # uma linha por fatia
 
 
 def metricas(y_verdadeiro, probabilidades, limiar: float = 0.5) -> dict[str, float]:

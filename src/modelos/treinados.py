@@ -24,8 +24,12 @@ class ModelosTreinados:
     anos: str
     regressao: ResultadoRegressao | None
     classificador: BaseEstimator
-    metricas_classificador: pd.Series  # no conjunto de teste do treino
+    metricas_fatias: pd.DataFrame  # uma linha por fatia da validação cruzada
     linhas_classificador: int
+
+    @property
+    def metricas_classificador(self) -> pd.Series:
+        return self.metricas_fatias.mean()
 
 
 def salvar(modelos: ModelosTreinados) -> None:

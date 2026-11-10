@@ -38,12 +38,12 @@ def _leitura_comparacao(comparacao) -> str:
                  f"({pct(novos['% fatais'])} contra {pct(base['% fatais'])}).")
 
     if comparacao.modelo is not None:
-        recall_teste, recall_novos = comparacao.modelo.loc["recall"]
-        if abs(recall_novos - recall_teste) < DIFERENCA_RELEVANTE_RECALL:
-            texto += (f" O modelo treinado encontra {pct(recall_novos * 100)} dos fatais dos dados novos, perto dos {pct(recall_teste * 100)} do teste: "
+        recall_validacao, recall_novos = comparacao.modelo.loc["recall"]
+        if abs(recall_novos - recall_validacao) < DIFERENCA_RELEVANTE_RECALL:
+            texto += (f" O modelo treinado encontra {pct(recall_novos * 100)} dos fatais dos dados novos, perto dos {pct(recall_validacao * 100)} da validação cruzada: "
                       "os dados novos seguem o padrão dos dados de treino.")
         else:
-            texto += (f" O modelo treinado encontra {pct(recall_novos * 100)} dos fatais dos dados novos, contra {pct(recall_teste * 100)} no teste: "
+            texto += (f" O modelo treinado encontra {pct(recall_novos * 100)} dos fatais dos dados novos, contra {pct(recall_validacao * 100)} na validação cruzada: "
                       "os dados novos fogem do padrão dos dados de treino, e um novo treino pode mudar o modelo.")
     return texto
 

@@ -12,7 +12,7 @@ def _contexto_regressao(resultado) -> dict:
     if resultado is None:
         return {"regressao": None}
 
-    teste = resultado.metricas.loc["teste"]
+    validacao = resultado.metricas.loc["validação cruzada"]
     sensibilidade = resultado.sensibilidade["pista simples 0% → 100% (pp)"].dropna()
     efeito = resultado.coeficientes.loc["pct_pista_simples", "efeito de 0% → 100%"]
     return {
@@ -20,17 +20,22 @@ def _contexto_regressao(resultado) -> dict:
         "variaveis_regressao": len(resultado.coeficientes),
         "efeito_simples": None if efeito != efeito else f"{'+' if efeito >= 0 else ''}{num(efeito)}",
         "intervalo_simples": f"{num(sensibilidade.min())} a {num(sensibilidade.max())} pp" if len(sensibilidade) else None,
-        "r2_regressao": num(teste["R²"], 2),
-        "mae_regressao": num(teste["MAE"], 2),
+        "r2_regressao": num(validacao["R²"], 2),
+        "mae_regressao": num(validacao["MAE"], 2),
     }
 
 
 def _contexto_classificador(modelos) -> dict:
-    metricas = modelos.metricas_classificador.rename(NOMES_METRICAS)
+    fatias = modelos.metricas_fatias.rename(columns=NOMES_METRICAS)
+    metricas = fatias.mean()
+    tabela = fatias.T.rename(columns=lambda i: f"fatia {i + 1}")
+    tabela["média"] = metricas
+    tabela["desvio"] = fatias.std()
     return {
-        "metricas_classificador": metricas.to_frame("teste"),
+        "fatias": len(fatias),
+        "metricas_classificador": tabela,
         "leitura_classificador": (
-            f"O MLP tem acurácia de {pct(metricas['acurácia'] * 100)}, mas encontra só {pct(metricas['recall'] * 100)} dos acidentes fatais. "
+            f"Na média das {len(fatias)} fatias, o MLP tem acurácia de {pct(metricas['acurácia'] * 100)}, mas encontra só {pct(metricas['recall'] * 100)} dos acidentes fatais. "
             "Com uma classe rara, a acurácia engana: o recall e a precisão mostram o desempenho real."
         ),
     }
