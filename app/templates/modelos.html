@@ -16,17 +16,18 @@
   {% if base_atual != modelos.acidentes %}A base atual tem {{ base_atual|num(0) }} acidentes: os dados adicionados entram no próximo treino (<code>python3 -m scripts.treinar_modelos</code>).{% endif %}</p>
 
 <div class="grade">
-  {% call cartao("Classificador: MLP (scikit-learn)",
-       leitura=leitura_classificador,
-       limite="Validação cruzada em " ~ fatias ~ " fatias aleatórias, estratificadas pela classe fatal: cada fatia é o teste uma vez, e as outras treinam. O modelo salvo treina com a base toda. Limiar de decisão: 0,5.",
+  {% call cartao("Classificadores: árvore de decisão, KNN e MLP",
+       leitura=leitura_classificadores,
+       limite="Validação cruzada em " ~ fatias ~ " fatias aleatórias, estratificadas pela classe fatal: cada fatia é o teste uma vez, e as outras treinam. Os modelos salvos treinam com a base toda. Limiar de decisão: 0,5.",
        largo=True) %}
-    <span class="status">treinado</span>
+    <span class="status">treinados</span>
     <dl class="ficha">
       <dt>Pergunta</dt><dd>Um modelo consegue prever se um acidente vai ser fatal, com as condições do acidente (sem as colunas de vítimas)?</dd>
-      <dt>Dados</dt><dd>{{ modelos.linhas_classificador|num(0) }} acidentes. Variáveis: UF, BR, dia, causa, tipo de acidente, fase do dia, sentido, clima, pista, traçado, uso do solo, km, pessoas e veículos.</dd>
+      <dt>Dados</dt><dd>{{ modelos.acidentes|num(0) }} acidentes. Variáveis: UF, BR, dia, causa, tipo de acidente, fase do dia, sentido, clima, pista, traçado, uso do solo, km, pessoas e veículos.</dd>
     </dl>
-    <div class="rolagem">{{ metricas_classificador|tabela(3) }}</div>
-    <p class="nota"><a href="{{ url_for('dados.tela', **filtros_atuais.como_dict()) }}">Na tela Dados, um arquivo adicionado é comparado com o desempenho deste modelo →</a></p>
+    <div class="rolagem">{{ tabela_classificadores|tabela }}</div>
+    <p class="nota">Média ± desvio entre as fatias.
+      <a href="{{ url_for('dados.tela', **filtros_atuais.como_dict()) }}">Na tela Dados, um arquivo adicionado é comparado com estes modelos →</a></p>
   {% endcall %}
 
   {% call cartao("Rede com embeddings (PyTorch)", largo=True) %}

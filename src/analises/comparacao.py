@@ -36,14 +36,19 @@ def comparar_perfil(base: pd.DataFrame, novos: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame({"base antes do envio": perfil(base), "dados novos": perfil(novos)})
 
 
-def comparar_modelo(classificador, metricas_validacao: pd.Series, novos: pd.DataFrame) -> pd.DataFrame | None:
+def comparar_modelos(classificadores: dict, novos: pd.DataFrame) -> pd.DataFrame | None:
     # sem fatais (ou só fatais) o recall e a precisão não dizem nada
     if not novos[ALVO].any() or novos[ALVO].all():
         return None
 
-    probabilidades = classificador.predict_proba(novos)[:, 1]
-    tabela = pd.DataFrame({
-        "validação cruzada (média)": metricas_validacao,
-        "dados novos": metricas(novos[ALVO], probabilidades),
-    })
-    return tabela.rename(index=NOMES_METRICAS)
+    linhas = {}
+    for nome, classificador in classificadores.items():
+        validacao = classificador.metricas_fatias.mean()
+        nos_novos = metricas(novos[ALVO], classificador.modelo.predict_proba(novos)[:, 1])
+        linhas[nome] = {
+            "recall (validação)": validacao["recall"],
+            "recall (dados novos)": nos_novos["recall"],
+            "PR-AUC (validação)": validacao["precisao_media"],
+            "PR-AUC (dados novos)": nos_novos["precisao_media"],
+        }
+    return pd.DataFrame.from_dict(linhas, orient="index")

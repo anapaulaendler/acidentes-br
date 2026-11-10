@@ -42,7 +42,7 @@
         <div class="rolagem">{{ perfil_comparacao|tabela }}</div>
       </div>
       <div>
-        <p class="nota">O modelo treinado (MLP) na validação cruzada e nos dados novos</p>
+        <p class="nota">Os modelos treinados na validação cruzada e nos dados novos</p>
         {% if comparacao.modelo is not none %}
           <div class="rolagem">{{ comparacao.modelo|tabela(3) }}</div>
         {% elif modelos %}

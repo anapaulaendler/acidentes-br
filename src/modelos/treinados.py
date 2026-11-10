@@ -11,7 +11,13 @@ from sklearn.base import BaseEstimator
 PASTA = Path(__file__).resolve().parents[2] / "modelos_treinados"
 ARQUIVO = PASTA / "modelos.joblib"
 
-CLASSIFICADOR = "MLP (scikit-learn)"
+CLASSIFICADORES = ["Árvore de decisão", "KNN", "MLP (scikit-learn)"]
+
+
+@dataclass(frozen=True)
+class Classificador:
+    modelo: BaseEstimator
+    metricas_fatias: pd.DataFrame  # uma linha por fatia
 
 
 @dataclass(frozen=True)
@@ -20,13 +26,7 @@ class ModelosTreinados:
     base: str
     acidentes: int
     anos: str
-    classificador: BaseEstimator
-    metricas_fatias: pd.DataFrame  # uma linha por fatia da validação cruzada
-    linhas_classificador: int
-
-    @property
-    def metricas_classificador(self) -> pd.Series:
-        return self.metricas_fatias.mean()
+    classificadores: dict[str, Classificador]
 
 
 def salvar(modelos: ModelosTreinados) -> None:

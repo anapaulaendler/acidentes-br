@@ -9,7 +9,7 @@ from typing import Any, Callable
 import pandas as pd
 from werkzeug.utils import secure_filename
 
-from analises.comparacao import comparar_modelo, comparar_perfil
+from analises.comparacao import comparar_modelos, comparar_perfil
 from carregar import carregar
 from limpeza import limpar
 from modelos import treinados
@@ -131,7 +131,7 @@ def adicionar(conteudo: bytes, nome_arquivo: str, formato: str) -> Comparacao:
         linhas_arquivo=len(novos_limpos),
         linhas_novas=linhas_novas,
         perfil=comparar_perfil(anterior.limpo, novos_limpos),
-        modelo=comparar_modelo(_modelos.classificador, _modelos.metricas_classificador, novos_limpos) if _modelos else None,
+        modelo=comparar_modelos(_modelos.classificadores, novos_limpos) if _modelos else None,
     )
     return _ultima_comparacao
 

@@ -21,25 +21,27 @@ def main() -> None:
     df = base.limpo
     print(f"{base.nome} + {base.arquivos_adicionados} arquivo(s) adicionado(s): {len(df):,} acidentes")
 
-    print(f"Validação cruzada do {treinados.CLASSIFICADOR} ({FATIAS} fatias)...")
-    por_fatia = validacao_cruzada(treinados.CLASSIFICADOR, df)
+    classificadores = {}
+    for nome in treinados.CLASSIFICADORES:
+        print(f"{nome}: validação cruzada ({FATIAS} fatias)...")
+        por_fatia = validacao_cruzada(nome, df)
 
-    # o modelo salvo treina com a base toda; a validação cruzada mede como ele se sai em acidentes que não viu
-    print(f"Treinando o {treinados.CLASSIFICADOR} com a base toda...")
-    classificador = treinar(treinados.CLASSIFICADOR, montar_features(df))
+        # o modelo salvo treina com a base toda; a validação cruzada mede como ele se sai em acidentes que não viu
+        print(f"{nome}: treino com a base toda...")
+        modelo = treinar(nome, montar_features(df))
+        classificadores[nome] = treinados.Classificador(modelo=modelo, metricas_fatias=por_fatia)
 
-    treinados.salvar(treinados.ModelosTreinados(
-        treinado_em=datetime.now(),
-        base=base.nome,
-        acidentes=len(df),
-        anos=f"{df['ano'].min()}–{df['ano'].max()}",
-        classificador=classificador,
-        metricas_fatias=por_fatia,
-        linhas_classificador=len(df),
-    ))
+        # salva a cada modelo: se o treino cair no meio, os modelos prontos ficam salvos
+        treinados.salvar(treinados.ModelosTreinados(
+            treinado_em=datetime.now(),
+            base=base.nome,
+            acidentes=len(df),
+            anos=f"{df['ano'].min()}–{df['ano'].max()}",
+            classificadores=classificadores,
+        ))
+        print(pd.DataFrame({"média": por_fatia.mean(), "desvio": por_fatia.std()}).round(3).to_string())
 
     print(f"Salvo em {treinados.ARQUIVO} ({perf_counter() - inicio:.0f} s)")
-    print(pd.DataFrame({"média": por_fatia.mean(), "desvio": por_fatia.std()}).round(3).to_string())
 
 
 if __name__ == "__main__":

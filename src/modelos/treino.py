@@ -8,17 +8,13 @@ from colunas import ALVO
 
 
 def treinar(nome: str, df: pd.DataFrame, **params) -> BaseEstimator:
-    modelo = criar_modelo(nome, **params)
-
-    if not CATALOGO[nome].usa_preprocessador:
-        modelo.fit(df, df[ALVO]) # type: ignore
-        return modelo
+    registrado = CATALOGO[nome]
     
-    pipeline = Pipeline([
-        ("prep", preprocessador()),
-        ("modelo", criar_modelo(nome, **params))
-    ])
+    modelo = criar_modelo(nome, **params)
+    if not registrado.usa_preprocessador:
+        modelo.fit(df, df[ALVO])
+        return modelo
 
+    pipeline = Pipeline([("prep", preprocessador()), ("modelo", modelo)])
     pipeline.fit(df, df[ALVO])
-
     return pipeline
