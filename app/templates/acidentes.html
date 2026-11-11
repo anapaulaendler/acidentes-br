@@ -48,6 +48,19 @@
       {% endfor %}
     </div>
   {% endcall %}
+
+  {% if grafico_fase %}
+  {% call cartao("Acidentes fatais por fase do dia", leitura=leitura_fase) %}
+    {{ grafico_fase }}
+  {% endcall %}
+  {% endif %}
+
+  {% if grafico_tipo %}
+  {% call cartao("Letalidade por tipo de acidente", leitura=leitura_tipo,
+       limite="Só os tipos com pelo menos 30 acidentes nos filtros atuais.") %}
+    {{ grafico_tipo }}
+  {% endcall %}
+  {% endif %}
 </div>
 {% endblock %}
 

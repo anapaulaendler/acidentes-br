@@ -1,4 +1,5 @@
 import pandas as pd
+import plotly.io as pio
 from markupsafe import Markup
 
 
@@ -27,3 +28,11 @@ def tabela(df: pd.DataFrame, casas: int = 2, indice: bool = True) -> Markup:
             formatado[coluna] = formatado[coluna].map(lambda v: num(v, casas))
 
     return Markup(formatado.to_html(classes="tabela", index=indice, border=0, na_rep="–", escape=True))
+
+
+def grafico(fig, altura: int = 380) -> Markup:
+    """Só o pedaço da figura do plotly: a página e o plotly.js já vêm do base.html."""
+    fig.update_layout(template="simple_white", height=altura, margin=dict(l=10, r=10, t=10, b=10),
+                      font=dict(family="system-ui, sans-serif", size=13))
+    return Markup(pio.to_html(fig, full_html=False, include_plotlyjs=False,
+                              config={"displayModeBar": False, "responsive": True}))
