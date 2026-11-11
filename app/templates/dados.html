@@ -1,76 +1,12 @@
 {% extends "base.html" %}
-{% from "_cartao.html" import cartao %}
+{% from "_lista.html" import lista as lista_paginada with context %}
 {% block titulo %}Dados — Acidentes nas rodovias federais{% endblock %}
 {% block conteudo %}
 <header class="cabecalho">
   <h1>Dados</h1>
-  <p>Carregue uma base da PRF, veja o que a limpeza fez e consulte os acidentes.</p>
+  <p>Todos os acidentes da base: a <b>{{ base.nome }}</b>{% if base.arquivos_adicionados %} e os {{ base.arquivos_adicionados }} arquivo(s) adicionado(s){% endif %}.
+    Para enviar um arquivo, use a tela <a href="{{ url_for('adicionados.tela') }}">Dados adicionados</a>.</p>
 </header>
 
-<section class="cartao largo">
-  <h3>Adicionar dados à base</h3>
-  {% if base %}
-  <p>A base atual é a <b>{{ base.nome }}</b>{% if base.arquivos_adicionados %}, com {{ base.arquivos_adicionados }} arquivo(s) adicionado(s){% endif %}.
-    Um arquivo enviado <b>entra na base</b>: as telas passam a contar com ele, e ele fica salvo para as próximas execuções da app.
-    As linhas que já estavam na base não contam duas vezes.</p>
-  {% else %}
-  <p>A app ainda não tem base: os arquivos da PRF (<code>datatran2017.csv</code> a <code>datatran2026.csv</code>) não estão em <code>data/raw/</code>.
-    Envie um arquivo para começar: ele vira a base e fica salvo para as próximas execuções da app.</p>
-  {% endif %}
-  <p>O arquivo precisa ter as colunas dos dados abertos da PRF, agrupados por ocorrência. Formatos: .csv (separador <code>;</code>), .json ou .xml.</p>
-  <form class="upload" method="post" action="{{ url_for('dados.upload') }}" enctype="multipart/form-data">
-    <input type="file" name="arquivo" accept=".csv,.json,.xml" required>
-    <button type="submit">Adicionar à base</button>
-  </form>
-  {% if base and base.arquivos_adicionados %}
-  <form method="post" action="{{ url_for('dados.remover_adicionados') }}"
-        onsubmit="return confirm('Remover os {{ base.arquivos_adicionados }} arquivo(s) adicionado(s) e voltar à base inicial?')">
-    <button type="submit" class="secundario">Remover os dados adicionados</button>
-  </form>
-  {% endif %}
-  <p class="nota">
-    {% if modelos %}Os modelos foram treinados em {{ modelos.treinado_em.strftime('%d/%m/%Y') }} com {{ modelos.acidentes|num(0) }} acidentes ({{ modelos.anos }}).
-    Os dados adicionados entram no próximo treino: <code>python3 -m scripts.treinar_modelos</code>.
-    {% else %}Os modelos ainda não foram treinados. Rode <code>python3 -m scripts.treinar_modelos</code> e reinicie a app.{% endif %}
-  </p>
-</section>
-
-{% if comparacao %}
-<div class="grade" style="margin-top:16px">
-  {% call cartao("Como os dados novos se encaixam na base: " ~ comparacao.arquivo,
-       leitura=leitura_comparacao,
-       limite="Se os dados novos repetem acidentes que o modelo viu no treino, o desempenho nos dados novos fica otimista." if comparacao.linhas_novas < comparacao.linhas_arquivo else none,
-       largo=True) %}
-    <div class="dois">
-      <div>
-        <p class="nota">O perfil dos acidentes</p>
-        <div class="rolagem">{{ perfil_comparacao|tabela }}</div>
-      </div>
-      <div>
-        <p class="nota">Os modelos treinados na validação cruzada e nos dados novos</p>
-        {% if comparacao.modelo is not none %}
-          <div class="rolagem">{{ comparacao.modelo|tabela(3) }}</div>
-        {% elif modelos %}
-          <p class="nota">Os dados novos precisam ter acidentes fatais e não fatais para medir o modelo.</p>
-        {% else %}
-          <p class="nota">Sem modelos treinados.</p>
-        {% endif %}
-      </div>
-    </div>
-  {% endcall %}
-</div>
-{% endif %}
-
-{% if base %}
-<div class="grade" style="margin-top:16px">
-  {% call cartao("Acidentes (" ~ (linhas_filtradas|num(0)) ~ " com os filtros atuais)", largo=True) %}
-    <div class="rolagem">{{ tabela|tabela(1, indice=False) }}</div>
-    <div class="paginacao">
-      {% if pagina > 1 %}<a href="{{ url_for('dados.tela', pagina=pagina - 1, **filtros_atuais.como_dict()) }}">← anterior</a>{% endif %}
-      <span>Página {{ pagina|num(0) }} de {{ paginas|num(0) }}</span>
-      {% if pagina < paginas %}<a href="{{ url_for('dados.tela', pagina=pagina + 1, **filtros_atuais.como_dict()) }}">próxima →</a>{% endif %}
-    </div>
-  {% endcall %}
-</div>
-{% endif %}
+{{ lista_paginada("Acidentes", lista, "dados.tela") }}
 {% endblock %}

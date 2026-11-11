@@ -3,7 +3,6 @@
 {% block conteudo %}
 <header class="cabecalho">
   <h1>Modelos</h1>
-  <p>Os modelos respondem a perguntas sobre a hipótese. Os modelos já estão treinados: a app usa os pesos salvos, e os filtros da barra lateral não mudam os modelos.</p>
 </header>
 
 {% if modelos is none %}
@@ -12,13 +11,9 @@
   <p>Rode <code>python3 -m scripts.treinar_modelos</code> na raiz do projeto e reinicie a app.</p>
 </section>
 {% else %}
-<p class="nota">Treinados em {{ modelos.treinado_em.strftime('%d/%m/%Y %H:%M') }} com {{ modelos.base }}: {{ modelos.acidentes|num(0) }} acidentes ({{ modelos.anos }}).
-  {% if base_atual != modelos.acidentes %}A base atual tem {{ base_atual|num(0) }} acidentes: os dados adicionados entram no próximo treino (<code>python3 -m scripts.treinar_modelos</code>).{% endif %}</p>
-
 <div class="grade">
   {% call cartao("Classificadores: árvore de decisão, KNN, MLP e rede com embeddings",
        leitura=leitura_classificadores,
-       limite="Validação cruzada em " ~ fatias ~ " fatias aleatórias, estratificadas pela classe fatal: cada fatia é o teste uma vez, e as outras treinam. Os modelos salvos treinam com a base toda. Limiar de decisão: 0,5.",
        largo=True) %}
     <span class="status">treinados</span>
     <dl class="ficha">
@@ -27,7 +22,7 @@
     </dl>
     <div class="rolagem">{{ tabela_classificadores|tabela }}</div>
     <p class="nota">Média ± desvio entre as fatias.
-      <a href="{{ url_for('dados.tela', **filtros_atuais.como_dict()) }}">Na tela Dados, um arquivo adicionado é comparado com estes modelos →</a></p>
+      <a href="{{ url_for('adicionados.tela') }}">Na tela Dados adicionados, um arquivo enviado é comparado com estes modelos →</a></p>
   {% endcall %}
 
   {% if embeddings %}

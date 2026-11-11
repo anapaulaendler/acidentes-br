@@ -25,7 +25,6 @@ def _contexto_classificadores(modelos) -> dict:
         "tabela_classificadores": pd.DataFrame.from_dict(linhas, orient="index"),
         "leitura_classificadores": (
             f"O modelo que encontra mais acidentes fatais é {melhor} ({pct(recall[melhor] * 100)}). "
-            "Com uma classe rara, a acurácia engana: o recall e a precisão mostram o desempenho real."
         ),
     }
 

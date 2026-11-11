@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_cartao.html" import cartao %}
+{% from "_lista.html" import lista as lista_paginada with context %}
+{% block titulo %}Dados adicionados — Acidentes nas rodovias federais{% endblock %}
+{% block conteudo %}
+<header class="cabecalho">
+  <h1>Dados adicionados</h1>
+</header>
+
+<section class="cartao largo">
+  <h3>Adicionar dados à base</h3>
+  <p>O arquivo precisa ter as colunas dos dados abertos da PRF, agrupados por ocorrência. Formatos: .csv (separador <code>;</code>), .json ou .xml.</p>
+  <form class="upload" method="post" action="{{ url_for('adicionados.upload') }}" enctype="multipart/form-data">
+    <input type="file" name="arquivo" accept=".csv,.json,.xml" required>
+    <button type="submit">Adicionar à base</button>
+  </form>
+  {% if base and base.arquivos_adicionados %}
+  <form method="post" action="{{ url_for('adicionados.remover') }}"
+        onsubmit="return confirm('Remover os {{ base.arquivos_adicionados }} arquivo(s) adicionado(s) e voltar à base inicial?')">
+    <button type="submit" class="secundario">Remover os dados adicionados</button>
+  </form>
+  {% endif %}
+</section>
+
+{% if lista %}
+{{ lista_paginada("Acidentes dos arquivos enviados", lista, "adicionados.tela") }}
+{% else %}
+<p class="nota" style="margin-top:16px">Nenhum arquivo foi adicionado ainda.</p>
+{% endif %}
+{% endblock %}

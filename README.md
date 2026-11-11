@@ -32,7 +32,8 @@ O mapa precisa de internet (fundo do OpenStreetMap). O resto da app funciona sem
 |---|---|
 | Acidentes | O mapa dos acidentes, paginado, com o filtro de fatais, não fatais ou os dois |
 | Modelos | Um cartão por modelo: a pergunta, os dados, o resultado e o limite |
-| Dados | O upload, o relatório da limpeza, a mudança das categorias em 2021 e a tabela dos acidentes |
+| Dados | A lista paginada de todos os acidentes da base |
+| Dados adicionados | O envio de arquivos, a comparação com a base e com os modelos, e a lista paginada só com os acidentes enviados |
 
 Cada gráfico fica num **cartão de insight**: a afirmação, a evidência, a leitura e o limite. Os números saem da base carregada.
 Uma base nova com as mesmas colunas recalcula todas as telas e todos os modelos.

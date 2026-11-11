@@ -1,0 +1,14 @@
+{# A lista de acidentes paginada, igual nas telas Dados e Dados adicionados. #}
+{% macro lista(titulo, pagina_atual, endpoint) %}
+<div class="grade" style="margin-top:16px">
+  <section class="cartao largo">
+    <h3>{{ titulo }} ({{ pagina_atual.total|num(0) }} com os filtros atuais)</h3>
+    <div class="rolagem">{{ pagina_atual.tabela|tabela(1, indice=False) }}</div>
+    <div class="paginacao">
+      {% if pagina_atual.pagina > 1 %}<a href="{{ url_for(endpoint, pagina=pagina_atual.pagina - 1, **filtros_atuais.como_dict()) }}">← anterior</a>{% endif %}
+      <span>Página {{ pagina_atual.pagina|num(0) }} de {{ pagina_atual.paginas|num(0) }}</span>
+      {% if pagina_atual.pagina < pagina_atual.paginas %}<a href="{{ url_for(endpoint, pagina=pagina_atual.pagina + 1, **filtros_atuais.como_dict()) }}">próxima →</a>{% endif %}
+    </div>
+  </section>
+</div>
+{% endmacro %}

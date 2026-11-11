@@ -12,9 +12,9 @@ def criar_app() -> Flask:
 
     estado.iniciar()
 
-    from app.telas import TELAS, acidentes, dados, modelos
+    from app.telas import TELAS, acidentes, adicionados, dados, modelos
 
-    for modulo in (acidentes, modelos, dados):
+    for modulo in (acidentes, modelos, dados, adicionados):
         app.register_blueprint(modulo.bp)
 
     app.add_template_filter(formato.num, "num")

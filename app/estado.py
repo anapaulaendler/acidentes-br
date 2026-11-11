@@ -41,6 +41,7 @@ class Comparacao:
 _base: Base | None = None
 _modelos: treinados.ModelosTreinados | None = None
 _ultima_comparacao: Comparacao | None = None
+_adicionados: pd.DataFrame | None = None  # calculado na primeira vez que a tela pede
 
 
 def base() -> Base | None:
@@ -55,6 +56,20 @@ def ultima_comparacao() -> Comparacao | None:
     return _ultima_comparacao
 
 
+def dados_adicionados() -> pd.DataFrame:
+    """As linhas dos arquivos enviados pela app, limpas, com o nome do arquivo de onde vieram."""
+    global _adicionados
+
+    if _adicionados is None:
+        partes = []
+        for arquivo in arquivos_adicionados():
+            # o nome salvo é "AAAAMMDD-HHMMSS_nome.csv"; a tela mostra só o nome enviado
+            partes.append(_limpar(carregar(arquivo)).assign(arquivo=arquivo.name.split("_", 1)[-1]))
+        _adicionados = pd.concat(partes, ignore_index=True) if partes else pd.DataFrame()
+
+    return _adicionados
+
+
 def _limpar(bruto: pd.DataFrame) -> pd.DataFrame:
     limpo = limpar(bruto)
     limpo["ano"] = limpo["data_inversa"].dt.year
@@ -62,8 +77,9 @@ def _limpar(bruto: pd.DataFrame) -> pd.DataFrame:
 
 
 def _guardar(nome: str, bruto: pd.DataFrame, arquivos_adicionados: int, limpo: pd.DataFrame | None = None) -> None:
-    global _base
+    global _base, _adicionados
 
+    _adicionados = None
     limpo = _limpar(bruto) if limpo is None else limpo
     _base = Base(nome=nome, bruto=bruto, limpo=limpo, arquivos_adicionados=arquivos_adicionados)
 
@@ -105,8 +121,9 @@ def iniciar(com_modelos: bool = True, para_treino: bool = False) -> Base | None:
     Com para_treino=True, a amostra de produção sai também dos arquivos adicionados: se alguém
     enviou o producao_100.csv pela app, o treino e a validação cruzada continuam sem esses acidentes.
     """
-    global _base, _modelos, _ultima_comparacao
+    global _base, _modelos, _ultima_comparacao, _adicionados
 
+    _adicionados = None
     nome, inicial = _base_inicial()
     adicionados = arquivos_adicionados()
     partes = ([] if inicial is None else [inicial]) + [carregar(arquivo) for arquivo in adicionados]
