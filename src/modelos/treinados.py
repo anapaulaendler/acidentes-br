@@ -31,7 +31,7 @@ class ModelosTreinados:
 
 def salvar(modelos: ModelosTreinados) -> None:
     PASTA.mkdir(exist_ok=True)
-    joblib.dump(modelos, ARQUIVO)
+    joblib.dump(modelos, ARQUIVO, compress=3)
 
 
 def carregar() -> ModelosTreinados | None:
