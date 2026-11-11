@@ -22,8 +22,7 @@
       <dt>Dados</dt><dd>{{ modelos.acidentes|num(0) }} acidentes. Variáveis: UF, BR, dia, causa, tipo de acidente, fase do dia, sentido, clima, pista, traçado, uso do solo, km, pessoas e veículos.</dd>
     </dl>
     <div class="rolagem">{{ tabela_classificadores|tabela }}</div>
-    <p class="nota">Média ± desvio entre as fatias.
-      <a href="{{ url_for('adicionados.tela') }}">Na tela Dados adicionados, um arquivo enviado é comparado com estes modelos →</a></p>
+    <p class="nota">Média ± desvio entre as fatias.</p>
   {% endcall %}
 
   {% if embeddings %}
@@ -38,7 +37,7 @@
       <dt>Teste</dt><dd>{{ "A mesma rede" if embeddings.mesma_rede else "A rede contra o MLP do scikit-learn" }}, nas mesmas fatias da validação cruzada.
         Recall: {{ embeddings.recall_rede|pct }} (embeddings) contra {{ embeddings.recall_onehot|pct }} (one-hot).
         PR-AUC: {{ embeddings.pr_auc_rede|num(3) }} contra {{ embeddings.pr_auc_onehot|num(3) }}.
-        Os embeddings ganham no recall em {{ embeddings.fatias_a_favor }} de {{ embeddings.fatias }} fatias.</dd>
+        Os embeddings ganham no recall em {{ embeddings.fatias_a_favor }} de {{ embeddings.fatias }} fatias e no PR-AUC em {{ embeddings.fatias_a_favor_pr_auc }} de {{ embeddings.fatias }}.</dd>
     </dl>
     {% if grafico_projecao %}
     <p class="nota">Os embeddings das causas de acidente, projetados em 2D (PCA). Cada ponto é uma causa: causas próximas são causas que a rede aprendeu a tratar de modo parecido.

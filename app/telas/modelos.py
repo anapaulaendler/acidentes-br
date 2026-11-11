@@ -60,6 +60,7 @@ def _contexto_embeddings(modelos) -> dict:
     # a diferença só conta se for maior que a variação entre as fatias
     diferenca = (fatias_rede["recall"] - fatias_onehot["recall"])
     confirmou = diferenca.mean() > 0 and (diferenca > 0).all()
+    diferenca_pr_auc = fatias_rede["precisao_media"] - fatias_onehot["precisao_media"]
     nome_onehot = "a mesma rede com one-hot" if mesma_rede else "o MLP do scikit-learn com one-hot"
     return {
         "embeddings": {
@@ -69,11 +70,18 @@ def _contexto_embeddings(modelos) -> dict:
             "pr_auc_onehot": fatias_onehot["precisao_media"].mean(),
             "pr_auc_rede": fatias_rede["precisao_media"].mean(),
             "fatias_a_favor": int((diferenca > 0).sum()),
+            "fatias_a_favor_pr_auc": int((diferenca_pr_auc > 0).sum()),
             "fatias": len(diferenca),
             "leitura": (
                 f"A rede com embeddings encontra {pct(recall_rede * 100)} dos acidentes fatais, e {nome_onehot}, "
-                f"{pct(recall_onehot * 100)}. Os embeddings ganham em {int((diferenca > 0).sum())} de {len(diferenca)} fatias: "
-                f"a hipótese técnica {'se confirma' if confirmou else 'não se confirma'}."
+                f"{pct(recall_onehot * 100)}. "
+                + (
+                    "Os embeddings ganham no recall em todas as fatias: a hipótese técnica se confirma."
+                    if confirmou
+                    else f"Os embeddings ganham no recall em só {int((diferenca > 0).sum())} de {len(diferenca)} fatias: "
+                    "a hipótese técnica não se confirma. A diferença entre as duas redes é pequena, "
+                    "menor que a variação entre as fatias."
+                )
             ),
         }
     }
