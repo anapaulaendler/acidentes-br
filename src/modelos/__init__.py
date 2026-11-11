@@ -1,1 +1,1 @@
-from modelos import arvore, knn, mlp_sklearn
+from modelos import arvore, knn, mlp_sklearn, rede_neural
