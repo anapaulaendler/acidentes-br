@@ -30,6 +30,27 @@ def _contexto_classificadores(modelos) -> dict:
     }
 
 
+def _contexto_embeddings(modelos) -> dict:
+    mlp = modelos.classificadores.get("MLP (scikit-learn)")
+    rede = modelos.classificadores.get("Rede com embeddings (PyTorch)")
+    if mlp is None or rede is None:
+        return {"embeddings": None}
+
+    recall_mlp = mlp.metricas_fatias["recall"].mean()
+    recall_rede = rede.metricas_fatias["recall"].mean()
+    confirmou = recall_rede > recall_mlp
+    return {
+        "embeddings": {
+            "recall_mlp": recall_mlp * 100,
+            "recall_rede": recall_rede * 100,
+            "leitura": (
+                f"A rede com embeddings encontra {pct(recall_rede * 100)} dos acidentes fatais, e o MLP com one-hot, "
+                f"{pct(recall_mlp * 100)}. A hipótese técnica {'se confirma' if confirmou else 'não se confirma'}."
+            ),
+        }
+    }
+
+
 @bp.get("/modelos")
 @com_base_filtrada
 def tela(df, selecao):
@@ -39,5 +60,6 @@ def tela(df, selecao):
 
     contexto = {"modelos": modelos, "base_atual": len(estado.base().limpo)}
     contexto.update(_contexto_classificadores(modelos))
+    contexto.update(_contexto_embeddings(modelos))
 
     return render_template("modelos.html", **contexto)
