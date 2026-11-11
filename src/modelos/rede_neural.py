@@ -141,7 +141,7 @@ class ClassificadorEmbeddings(ClassifierMixin, BaseEstimator):
 
         p = torch.sigmoid(pontuacoes).numpy()
 
-        return np.column_stack([False, p])
+        return np.column_stack([1 - p, p])
 
 
 from modelos.catalogo import Hiperparametro, ModeloRegistrado, registrar
