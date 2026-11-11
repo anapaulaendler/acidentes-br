@@ -4,7 +4,6 @@ import io
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
 
 import pandas as pd
 from werkzeug.utils import secure_filename
@@ -27,7 +26,6 @@ class Base:
     nome: str
     bruto: pd.DataFrame
     limpo: pd.DataFrame
-    versao: int
     arquivos_adicionados: int
 
 
@@ -43,8 +41,6 @@ class Comparacao:
 _base: Base | None = None
 _modelos: treinados.ModelosTreinados | None = None
 _ultima_comparacao: Comparacao | None = None
-_versao = 0
-_cache: dict[tuple, Any] = {}
 
 
 def base() -> Base | None:
@@ -66,12 +62,10 @@ def _limpar(bruto: pd.DataFrame) -> pd.DataFrame:
 
 
 def _guardar(nome: str, bruto: pd.DataFrame, arquivos_adicionados: int, limpo: pd.DataFrame | None = None) -> None:
-    global _base, _versao
+    global _base
 
-    _versao += 1
     limpo = _limpar(bruto) if limpo is None else limpo
-    _base = Base(nome=nome, bruto=bruto, limpo=limpo, versao=_versao, arquivos_adicionados=arquivos_adicionados)
-    _cache.clear()
+    _base = Base(nome=nome, bruto=bruto, limpo=limpo, arquivos_adicionados=arquivos_adicionados)
 
 
 def tem_base_completa() -> bool:
@@ -182,11 +176,3 @@ def remover_adicionados() -> None:
         arquivo.unlink()
 
     iniciar()
-
-
-def em_cache(chave: tuple, calcular: Callable[[], Any]) -> Any:
-    chave = (_versao,) + chave
-    if chave not in _cache:
-        _cache[chave] = calcular()
-
-    return _cache[chave]

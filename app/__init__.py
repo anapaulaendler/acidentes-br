@@ -1,16 +1,8 @@
-from functools import cache
-
-from flask import Flask, Response, request
-from plotly.offline import get_plotlyjs
+from flask import Flask, request
 
 from app import estado, filtros, formato
 
 LIMITE_UPLOAD_MB = 300
-
-
-@cache
-def _plotly_js() -> str:
-    return get_plotlyjs()
 
 
 def criar_app() -> Flask:
@@ -20,9 +12,9 @@ def criar_app() -> Flask:
 
     estado.iniciar()
 
-    from app.telas import TELAS, condicoes, dados, modelos, onde, quando
+    from app.telas import TELAS, acidentes, dados, modelos
 
-    for modulo in (quando, onde, condicoes, modelos, dados):
+    for modulo in (acidentes, modelos, dados):
         app.register_blueprint(modulo.bp)
 
     app.add_template_filter(formato.num, "num")
@@ -38,9 +30,5 @@ def criar_app() -> Flask:
             "filtros_atuais": filtros.ler(request.args),
             "opcoes_filtro": filtros.opcoes(base.limpo) if base else None,
         }
-
-    @app.get("/plotly.js")
-    def plotly_js():
-        return Response(_plotly_js(), mimetype="application/javascript", headers={"Cache-Control": "max-age=86400"})
 
     return app

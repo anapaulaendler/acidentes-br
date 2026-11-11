@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block titulo %}Acidentes nas rodovias federais{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='estilo.css') }}">
-  <script src="{{ url_for('plotly_js') }}"></script>
   {% block cabeca %}{% endblock %}
 </head>
 <body>
@@ -23,7 +22,7 @@
     {% if opcoes_filtro %}
     <form class="filtros" method="get" action="{{ url_for(request.endpoint) }}">
       <div class="label">Filtros</div>
-      {% for campo, rotulo in [('uf', 'UF'), ('ano', 'Ano'), ('pista', 'Tipo de pista')] %}
+      {% for campo, rotulo in [('gravidade', 'Acidentes'), ('uf', 'UF'), ('ano', 'Ano')] %}
       <label>{{ rotulo }}
         <select name="{{ campo }}" onchange="this.form.submit()">
           <option value="">Todos</option>

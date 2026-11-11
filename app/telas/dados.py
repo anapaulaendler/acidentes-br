@@ -3,8 +3,7 @@ from xml.etree.ElementTree import ParseError
 import pandas as pd
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 
-from analises.limpeza_relatorio import causas_por_ano, proporcao_grupos_por_ano, relatorio_limpeza
-from app import estado, filtros, graficos
+from app import estado, filtros
 from app.formato import num, pct
 from validar import ErroDeColunas, ErroDeFormato
 
@@ -59,10 +58,6 @@ def tela():
     selecao = filtros.ler(request.args)
     df = filtros.aplicar(base.limpo, selecao)
 
-    relatorio = estado.em_cache(("relatorio",), lambda: relatorio_limpeza(base.bruto, base.limpo))
-    causas = estado.em_cache(("causas_por_ano",), lambda: causas_por_ano(base.limpo))
-    grupos = estado.em_cache(("grupos_por_ano",), lambda: proporcao_grupos_por_ano(base.limpo))
-
     paginas = max(1, -(-len(df) // LINHAS_POR_PAGINA))
     pagina = min(max(request.args.get("pagina", 1, type=int), 1), paginas)
     inicio = (pagina - 1) * LINHAS_POR_PAGINA
@@ -75,12 +70,6 @@ def tela():
         perfil_comparacao=_perfil_formatado(comparacao.perfil) if comparacao else None,
         leitura_comparacao=_leitura_comparacao(comparacao) if comparacao else None,
         modelos=estado.modelos(),
-        relatorio=relatorio,
-        grafico_causas=graficos.barras(causas.rename(index=str), "Causas diferentes", sufixo="", casas=0),
-        maximo_causas=causas.max(),
-        tem_quebra_2021={2020, 2021} <= set(causas.index),
-        minimo_causas=causas.min(),
-        grupos=grupos.rename_axis(index="grupo de causa", columns="ano"),
         linhas_filtradas=len(df),
         tabela=trecho_tabela,
         pagina=pagina,
