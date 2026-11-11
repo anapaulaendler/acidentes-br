@@ -9,7 +9,7 @@
 {% if modelos is none %}
 <section class="cartao largo">
   <h3>Os modelos ainda não foram treinados</h3>
-  <p>Rode <code>python3 -m scripts.treinar_modelos</code> na raiz do projeto e reinicie a app.</p>
+  <p>Treine um modelo no cartão abaixo, ou rode <code>python3 -m scripts.treinar_modelos</code> na raiz do projeto e reinicie a app.</p>
 </section>
 {% else %}
 <div class="grade">
@@ -50,6 +50,7 @@
   <section class="cartao largo" id="previsao">
     <h3>Prever os dados adicionados</h3>
     {% if tem_adicionados %}
+    <p><b>A opção leve.</b> Os modelos ficam como estão e dizem onde os dados novos se encaixam. Para os modelos aprenderem com os dados novos, use o re-treino abaixo.</p>
     <p>Os modelos treinados preveem, para cada acidente dos arquivos enviados, se ele foi fatal. A app compara a previsão com o que aconteceu.</p>
     <form method="post" action="{{ url_for('modelos.prever') }}">
       <button type="submit">{{ 'Prever de novo' if previsao else 'Prever' }}</button>
@@ -73,4 +74,40 @@
 {{ lista_paginada("Previsões por acidente", lista_previsao, "modelos.tela") }}
 {% endif %}
 {% endif %}
+
+<section class="cartao largo" id="retreino" style="margin-top:16px">
+  <h3>Re-treinar um modelo</h3>
+  <p><b>A opção pesada.</b> O modelo treina de novo com a base atual (a inicial mais os arquivos adicionados) e com os hiperparâmetros escolhidos aqui.
+    A app roda a validação cruzada e depois treina com a base toda: na base completa, pode levar horas (as redes e o KNN são os mais lentos), e a página fica carregando até terminar. Para testar rápido, use a árvore com 3 fatias.
+    Os outros modelos continuam como estão.</p>
+  {% for formulario in formularios_retreino %}
+  <details class="retreino">
+    <summary>{{ formulario.nome }}</summary>
+    <form method="post" action="{{ url_for('modelos.retreinar') }}">
+      <input type="hidden" name="modelo" value="{{ formulario.nome }}">
+      {% for hp, valor in formulario.hiperparametros %}
+      <label>{{ hp.nome }}
+        {% if hp.tipo == "escolha" %}
+        <select name="{{ hp.nome }}">
+          {% for opcao in hp.opcoes %}
+          <option value="{{ opcao }}" {{ 'selected' if opcao == valor }}>{{ 'nenhum' if opcao is none else opcao }}</option>
+          {% endfor %}
+        </select>
+        {% else %}
+        <input type="number" name="{{ hp.nome }}" value="{{ valor }}" min="{{ hp.minimo }}" max="{{ hp.maximo }}"
+               step="{{ 1 if hp.tipo == 'int' else 'any' }}" required>
+        {% endif %}
+      </label>
+      {% endfor %}
+      <label>fatias da validação cruzada
+        <select name="fatias">
+          <option value="3">3 (mais rápido)</option>
+          <option value="5" selected>5</option>
+        </select>
+      </label>
+      <button type="submit">Re-treinar</button>
+    </form>
+  </details>
+  {% endfor %}
+</section>
 {% endblock %}

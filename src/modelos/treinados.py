@@ -18,6 +18,8 @@ CLASSIFICADORES = ["Árvore de decisão", "KNN", "MLP (scikit-learn)", "Rede com
 class Classificador:
     modelo: BaseEstimator
     metricas_fatias: pd.DataFrame  # uma linha por fatia
+    # os hiperparâmetros escolhidos na tela; None = os padrões do catálogo (treino pelo script)
+    parametros: dict | None = None
 
 
 @dataclass(frozen=True)

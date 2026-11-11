@@ -8,7 +8,8 @@ from pathlib import Path
 import pandas as pd
 from werkzeug.utils import secure_filename
 
-from avaliacao import metricas, montar_features
+from avaliacao import metricas, montar_features, validacao_cruzada
+from modelos.treino import treinar
 from carregar import carregar
 from limpeza import limpar
 from colunas import ALVO
@@ -98,6 +99,35 @@ def prever() -> Previsao | None:
 
     _previsao = Previsao(metricas=pd.DataFrame.from_dict(linhas, orient="index"), previstos=previstos, feita_em=datetime.now())
     return _previsao
+
+
+def retreinar(nome: str, params: dict, fatias: int) -> treinados.Classificador:
+    """Treina um modelo de novo com a base atual (inicial + adicionados) e os hiperparâmetros da tela, e salva.
+
+    É a alternativa pesada ao prever(): o modelo passa a conhecer os dados novos.
+    Os outros modelos continuam como estavam.
+    """
+    global _modelos, _previsao
+
+    # como no script de treino: a amostra de produção nunca entra no treino
+    df = _limpar(_sem_producao(_base.bruto))
+    por_fatia = validacao_cruzada(nome, df, fatias, **params)
+    classificador = treinados.Classificador(
+        modelo=treinar(nome, montar_features(df), **params), metricas_fatias=por_fatia, parametros=params,
+    )
+
+    anteriores = _modelos.classificadores if _modelos else {}
+    novos = {**anteriores, nome: classificador}
+    _modelos = treinados.ModelosTreinados(
+        treinado_em=datetime.now(),
+        base=_base.nome,
+        acidentes=len(df),
+        anos=f"{df['ano'].min()}–{df['ano'].max()}",
+        classificadores={n: novos[n] for n in treinados.CLASSIFICADORES if n in novos},
+    )
+    treinados.salvar(_modelos)
+    _previsao = None  # a previsão antiga é de outro modelo
+    return classificador
 
 
 def _limpar(bruto: pd.DataFrame) -> pd.DataFrame:

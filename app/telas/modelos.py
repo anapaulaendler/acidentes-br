@@ -1,15 +1,15 @@
-from flask import Blueprint, flash, redirect, render_template, url_for
+from flask import Blueprint, flash, redirect, render_template, request, url_for
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.io as pio
-from markupsafe import Markup
 
 from app import estado, filtros
-from app.formato import num, pct
+from app.formato import grafico, num, pct
 from app.telas import com_base_filtrada
 from app.telas.dados import paginar
 from colunas import ALVO
+from modelos.catalogo import CATALOGO, criar_modelo
 from modelos.projecao import projetar_2d
+from modelos.treinados import CLASSIFICADORES
 
 bp = Blueprint("modelos", __name__)
 
@@ -104,14 +104,9 @@ def _contexto_projecao(rede, base: pd.DataFrame) -> dict:
                     line=dict(color="#52514e", width=0.5)),
         hovertemplate="%{text}<br>%{marker.color:.1f}% fatais<extra></extra>",
     ))
-    fig.update_layout(template="simple_white", height=480, margin=dict(l=10, r=10, t=10, b=10),
-                      font=dict(family="system-ui, sans-serif", size=13))
     fig.update_xaxes(title="componente 1", showticklabels=False)
     fig.update_yaxes(title="componente 2", showticklabels=False)
-
-    # só o pedaço da figura: a página e o plotly.js já vêm do base.html
-    html = pio.to_html(fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False, "responsive": True})
-    return {"grafico_projecao": Markup(html), "variancia_projecao": variancia}
+    return {"grafico_projecao": grafico(fig, altura=480), "variancia_projecao": variancia}
 
 
 # as colunas do acidente na lista de previsões; depois delas, uma coluna por modelo
@@ -157,14 +152,71 @@ def prever():
     return redirect(url_for("modelos.tela") + "#previsao")
 
 
+def _ler_hiperparametros(nome: str, formulario) -> dict:
+    """Converte os campos do formulário nos tipos do catálogo; criar_modelo confere os limites."""
+    params = {}
+    for hiperparam in CATALOGO[nome].hiperparametros:
+        texto = formulario.get(hiperparam.nome, "")
+        if hiperparam.tipo == "int":
+            params[hiperparam.nome] = int(texto)
+        elif hiperparam.tipo == "float":
+            params[hiperparam.nome] = float(texto.replace(",", "."))
+        else:
+            # o select manda texto: volta para a opção original (None, 512...)
+            opcoes = {str(opcao): opcao for opcao in hiperparam.opcoes}
+            if texto not in opcoes:
+                raise ValueError(f"{hiperparam.nome}={texto!r} fora de {hiperparam.opcoes}")
+            params[hiperparam.nome] = opcoes[texto]
+
+    criar_modelo(nome, **params)  # valida antes do treino pesado
+    return params
+
+
+@bp.post("/modelos/retreinar")
+def retreinar():
+    nome = request.form.get("modelo", "")
+    if nome not in CATALOGO:
+        flash(f"Modelo desconhecido: {nome}", "erro")
+        return redirect(url_for("modelos.tela") + "#retreino")
+    if estado.base() is None:
+        flash("Não há base para treinar. Envie um arquivo na tela Dados adicionados.", "aviso")
+        return redirect(url_for("modelos.tela") + "#retreino")
+
+    try:
+        params = _ler_hiperparametros(nome, request.form)
+        fatias = int(request.form.get("fatias", 5))
+    except ValueError as erro:
+        flash(f"Hiperparâmetro inválido: {erro}", "erro")
+        return redirect(url_for("modelos.tela") + "#retreino")
+
+    classificador = estado.retreinar(nome, params, fatias)
+    recall = classificador.metricas_fatias["recall"].mean()
+    flash(f"{nome} re-treinado com {num(estado.modelos().acidentes, 0)} acidentes: recall de {pct(recall * 100)}.", "sucesso")
+    return redirect(url_for("modelos.tela"))
+
+
+def _contexto_retreino(modelos) -> dict:
+    """Os formulários de re-treino: um por modelo, já preenchidos com os valores em uso."""
+    formularios = []
+    for nome in CLASSIFICADORES:
+        treinado = modelos.classificadores.get(nome) if modelos else None
+        atuais = (treinado.parametros if treinado else None) or {}
+        formularios.append({
+            "nome": nome,
+            "hiperparametros": [(hp, atuais.get(hp.nome, hp.padrao)) for hp in CATALOGO[nome].hiperparametros],
+        })
+    return {"formularios_retreino": formularios}
+
+
 @bp.get("/modelos")
 @com_base_filtrada
 def tela(df, selecao):
     modelos = estado.modelos()
     if modelos is None:
-        return render_template("modelos.html", modelos=None)
+        return render_template("modelos.html", modelos=None, **_contexto_retreino(None))
 
     contexto = {"modelos": modelos}
+    contexto.update(_contexto_retreino(modelos))
     contexto.update(_contexto_classificadores(modelos))
     contexto.update(_contexto_embeddings(modelos))
     rede = modelos.classificadores.get("Rede com embeddings (PyTorch)")
