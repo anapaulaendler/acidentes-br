@@ -8,7 +8,6 @@ from pathlib import Path
 import pandas as pd
 from werkzeug.utils import secure_filename
 
-from analises.comparacao import comparar_modelos, comparar_perfil
 from avaliacao import metricas, montar_features
 from carregar import carregar
 from limpeza import limpar
@@ -32,12 +31,11 @@ class Base:
 
 
 @dataclass(frozen=True)
-class Comparacao:
+class Envio:
+    """O resultado de um arquivo enviado, para o aviso da tela."""
     arquivo: str
     linhas_arquivo: int
     linhas_novas: int  # as que ainda não estavam na base
-    perfil: pd.DataFrame
-    modelo: pd.DataFrame | None
 
 
 @dataclass(frozen=True)
@@ -52,7 +50,6 @@ LIMIAR = 0.5  # o mesmo limiar da validação cruzada
 
 _base: Base | None = None
 _modelos: treinados.ModelosTreinados | None = None
-_ultima_comparacao: Comparacao | None = None
 _adicionados: pd.DataFrame | None = None  # calculado na primeira vez que a tela pede
 _previsao: Previsao | None = None
 
@@ -63,10 +60,6 @@ def base() -> Base | None:
 
 def modelos() -> treinados.ModelosTreinados | None:
     return _modelos
-
-
-def ultima_comparacao() -> Comparacao | None:
-    return _ultima_comparacao
 
 
 def dados_adicionados() -> pd.DataFrame:
@@ -159,7 +152,7 @@ def iniciar(com_modelos: bool = True, para_treino: bool = False) -> Base | None:
     Com para_treino=True, a amostra de produção sai também dos arquivos adicionados: se alguém
     enviou o producao_100.csv pela app, o treino e a validação cruzada continuam sem esses acidentes.
     """
-    global _base, _modelos, _ultima_comparacao, _adicionados, _previsao
+    global _base, _modelos, _adicionados, _previsao
 
     _adicionados = None
     _previsao = None
@@ -176,14 +169,11 @@ def iniciar(com_modelos: bool = True, para_treino: bool = False) -> Base | None:
         _base = None
 
     _modelos = treinados.carregar() if com_modelos else None
-    _ultima_comparacao = None
     return _base
 
 
-def adicionar(conteudo: bytes, nome_arquivo: str, formato: str) -> Comparacao:
+def adicionar(conteudo: bytes, nome_arquivo: str, formato: str) -> Envio:
     """Lê o arquivo, junta à base e salva uma cópia em data/adicionados/ para a junção valer nas próximas execuções."""
-    global _ultima_comparacao
-
     # se o arquivo for inválido, o erro sobe aqui, antes de salvar qualquer coisa
     novos = carregar(io.BytesIO(conteudo), formato)
     anterior = _base
@@ -199,26 +189,15 @@ def adicionar(conteudo: bytes, nome_arquivo: str, formato: str) -> Comparacao:
         _salvar_adicionado(conteudo, nome_arquivo)
         _guardar(anterior.nome, bruto, anterior.arquivos_adicionados + 1, limpo)
 
-    novos_limpos = _limpar(novos)
-    _ultima_comparacao = Comparacao(
-        arquivo=nome_arquivo,
-        linhas_arquivo=len(novos_limpos),
-        linhas_novas=linhas_novas,
-        perfil=comparar_perfil(anterior.limpo, novos_limpos),
-        modelo=comparar_modelos(_modelos.classificadores, novos_limpos) if _modelos else None,
-    )
-    return _ultima_comparacao
+    return Envio(arquivo=nome_arquivo, linhas_arquivo=len(_limpar(novos)), linhas_novas=linhas_novas)
 
 
-def _primeira_base(conteudo: bytes, nome_arquivo: str, novos: pd.DataFrame) -> Comparacao:
-    """Sem base inicial, o primeiro arquivo enviado vira a base: não há com o que comparar."""
-    global _ultima_comparacao
-
+def _primeira_base(conteudo: bytes, nome_arquivo: str, novos: pd.DataFrame) -> Envio:
+    """Sem base inicial, o primeiro arquivo enviado vira a base."""
     _salvar_adicionado(conteudo, nome_arquivo)
     _guardar("Arquivos enviados", novos, 1)
-    _ultima_comparacao = None
     linhas = len(_base.limpo)
-    return Comparacao(arquivo=nome_arquivo, linhas_arquivo=linhas, linhas_novas=linhas, perfil=pd.DataFrame(), modelo=None)
+    return Envio(arquivo=nome_arquivo, linhas_arquivo=linhas, linhas_novas=linhas)
 
 
 def _salvar_adicionado(conteudo: bytes, nome_arquivo: str) -> None:

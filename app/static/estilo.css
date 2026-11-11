@@ -76,8 +76,6 @@ body {
 .limite { margin: 8px 0 0; font-size: 14px; color: var(--limite); background: var(--limite-fundo); padding: 6px 10px; border-radius: 6px; }
 .nota { font-size: 13px; color: var(--texto-secundario); }
 .status { font-size: 11px; text-transform: uppercase; padding: 2px 8px; border-radius: 10px; background: var(--azul-fundo); color: var(--azul); margin-left: 6px; vertical-align: middle; }
-.status.andamento { background: var(--limite-fundo); color: var(--limite); }
-.dois { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .ficha { margin: 0 0 8px; font-size: 14px; }
 .ficha dt { font-weight: 600; float: left; clear: left; width: 90px; }
 .ficha dd { margin: 0 0 4px 96px; }
@@ -101,7 +99,6 @@ body {
 .aviso.aviso { background: var(--limite-fundo); color: var(--limite); }
 
 .upload { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
-.botoes { display: flex; gap: 10px; flex-wrap: wrap; }
 button {
   background: var(--azul);
   color: white;
@@ -113,9 +110,6 @@ button {
 }
 button.secundario { background: var(--superficie); color: var(--azul); border: 1px solid var(--azul); }
 
-.niveis { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
-.niveis li { padding: 10px 12px; border: 1px solid var(--borda); border-radius: 8px; }
-.niveis a { color: var(--azul); }
 
 #mapa { height: 460px; border-radius: 8px; }
 
@@ -123,7 +117,7 @@ button.secundario { background: var(--superficie); color: var(--azul); border: 1
   .app { flex-direction: column; }
   .lateral { width: 100%; height: auto; position: static; }
   .conteudo { padding: 16px; }
-  .grade, .dois { grid-template-columns: 1fr; }
+  .grade { grid-template-columns: 1fr; }
 }
 
 /* barras horizontais empilhadas (fatal + não fatal), sem biblioteca */

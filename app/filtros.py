@@ -13,9 +13,6 @@ class Filtros:
     ano: str | None = None
     gravidade: str | None = None
 
-    def chave(self) -> tuple:
-        return (self.uf, self.ano, self.gravidade)
-
     def como_dict(self) -> dict[str, str]:
         return {nome: valor for nome, valor in asdict(self).items() if valor}
 

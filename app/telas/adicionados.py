@@ -4,7 +4,7 @@ import pandas as pd
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from app import estado, filtros
-from app.formato import num, pct
+from app.formato import num
 from app.telas.dados import COLUNAS_TABELA, paginar
 from validar import ErroDeColunas, ErroDeFormato
 
@@ -13,52 +13,15 @@ bp = Blueprint("adicionados", __name__, url_prefix="/adicionados")
 # erros que vêm de um arquivo ruim; a mensagem vai para a tela e a base anterior continua
 ERROS_DE_LEITURA = (ErroDeColunas, ErroDeFormato, ValueError, ParseError, pd.errors.ParserError, UnicodeDecodeError, KeyError)
 
-# a diferença (em pontos percentuais) a partir da qual o lote novo foge do padrão da base
-DIFERENCA_RELEVANTE_PP = 2
-DIFERENCA_RELEVANTE_RECALL = 0.10
-
-
-def _perfil_formatado(perfil):
-    return perfil.map(lambda v: (pct(v) if v == v else "–") if isinstance(v, float) else v)
-
-
-def _leitura_comparacao(comparacao) -> str:
-    base, novos = comparacao.perfil["base antes do envio"], comparacao.perfil["dados novos"]
-    diferenca = novos["% fatais"] - base["% fatais"]
-    if abs(diferenca) < DIFERENCA_RELEVANTE_PP:
-        texto = f"Os dados novos têm uma letalidade parecida com a da base ({pct(novos['% fatais'])} contra {pct(base['% fatais'])})."
-    else:
-        texto = (f"Os dados novos têm uma letalidade {'mais alta' if diferenca > 0 else 'mais baixa'} que a da base "
-                 f"({pct(novos['% fatais'])} contra {pct(base['% fatais'])}).")
-
-    if comparacao.modelo is not None:
-        diferenca = (comparacao.modelo["recall (dados novos)"] - comparacao.modelo["recall (validação)"]).abs()
-        mudaram = diferenca[diferenca >= DIFERENCA_RELEVANTE_RECALL].index.tolist()
-        if not mudaram:
-            texto += (" Em todos os modelos, o recall nos dados novos fica perto do recall da validação cruzada: "
-                      "os dados novos seguem o padrão dos dados de treino.")
-        else:
-            texto += (f" O recall muda nos dados novos em: {', '.join(mudaram)}. "
-                      "Os dados novos fogem do padrão dos dados de treino, e um novo treino pode mudar esses modelos.")
-    return texto
-
 
 @bp.get("")
 def tela():
-    comparacao = estado.ultima_comparacao()
     adicionados = estado.dados_adicionados()
     lista = None
     if not adicionados.empty:
         lista = paginar(filtros.aplicar(adicionados, filtros.ler(request.args)), ["arquivo"] + COLUNAS_TABELA)
 
-    return render_template(
-        "adicionados.html",
-        comparacao=comparacao,
-        perfil_comparacao=_perfil_formatado(comparacao.perfil) if comparacao else None,
-        leitura_comparacao=_leitura_comparacao(comparacao) if comparacao else None,
-        modelos=estado.modelos(),
-        lista=lista,
-    )
+    return render_template("adicionados.html", lista=lista)
 
 
 @bp.post("/upload")
@@ -70,17 +33,17 @@ def upload():
 
     formato = arquivo.filename.rsplit(".", 1)[-1].lower() if "." in arquivo.filename else ""
     try:
-        comparacao = estado.adicionar(arquivo.read(), arquivo.filename, formato)
+        envio = estado.adicionar(arquivo.read(), arquivo.filename, formato)
     except ERROS_DE_LEITURA as erro:
         flash(f"O arquivo não foi adicionado. {erro}", "erro")
         return redirect(url_for("adicionados.tela"))
 
-    repetidas = comparacao.linhas_arquivo - comparacao.linhas_novas
-    if not comparacao.linhas_novas:
-        flash(f"{comparacao.arquivo} não mudou a base: os {num(repetidas, 0)} acidentes do arquivo já estavam nela.", "aviso")
+    repetidas = envio.linhas_arquivo - envio.linhas_novas
+    if not envio.linhas_novas:
+        flash(f"{envio.arquivo} não mudou a base: os {num(repetidas, 0)} acidentes do arquivo já estavam nela.", "aviso")
         return redirect(url_for("adicionados.tela"))
 
-    flash(f"{comparacao.arquivo} adicionado à base: {num(comparacao.linhas_novas, 0)} acidentes novos"
+    flash(f"{envio.arquivo} adicionado à base: {num(envio.linhas_novas, 0)} acidentes novos"
           + (f" ({num(repetidas, 0)} já estavam na base)." if repetidas else "."), "sucesso")
     return redirect(url_for("adicionados.tela"))
 

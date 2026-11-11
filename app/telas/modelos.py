@@ -1,7 +1,6 @@
 from flask import Blueprint, flash, redirect, render_template, url_for
 import pandas as pd
 
-from analises.comparacao import NOMES_METRICAS
 from app import estado, filtros
 from app.formato import num, pct
 from app.telas import com_base_filtrada
@@ -9,6 +8,14 @@ from app.telas.dados import paginar
 from colunas import ALVO
 
 bp = Blueprint("modelos", __name__)
+
+NOMES_METRICAS = {
+    "recall": "recall",
+    "precisao": "precisão",
+    "f1": "F1",
+    "precisao_media": "PR-AUC",
+    "acuracia": "acurácia",
+}
 
 
 def _contexto_classificadores(modelos) -> dict:
@@ -102,7 +109,7 @@ def tela(df, selecao):
     if modelos is None:
         return render_template("modelos.html", modelos=None)
 
-    contexto = {"modelos": modelos, "base_atual": len(estado.base().limpo)}
+    contexto = {"modelos": modelos}
     contexto.update(_contexto_classificadores(modelos))
     contexto.update(_contexto_embeddings(modelos))
     contexto["tem_adicionados"] = not estado.dados_adicionados().empty

@@ -10,7 +10,6 @@ import pandas as pd
 FATIAS = 5
 
 
-# TODO: adicionar aqui enquanto cada pessoa for adicionando as partes dela de limpeza de colunas
 def montar_features(df: pd.DataFrame) -> pd.DataFrame:
     return df.drop(columns=list(VAZAMENTO), errors="ignore")
 
