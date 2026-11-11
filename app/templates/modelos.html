@@ -29,12 +29,16 @@
   {% if embeddings %}
   {% call cartao("Rede com embeddings (PyTorch)",
        leitura=embeddings.leitura,
-       limite="As duas redes usam as mesmas " ~ fatias ~ " fatias, mas não são idênticas: a rede em PyTorch pesa a classe fatal (class_weight balanced) e usa dropout; o MLP do scikit-learn não pesa as classes. Parte da diferença no recall vem do peso da classe, não só dos embeddings.",
+       limite=("As duas redes são a mesma: mesmas camadas, mesmo peso da classe fatal, mesmo dropout, mesmas " ~ fatias ~ " fatias. Só a codificação das categorias muda." if embeddings.mesma_rede
+               else "Comparação com o MLP do scikit-learn: as duas redes não são idênticas (a rede em PyTorch pesa a classe fatal e usa dropout). Treine a \"Rede com one-hot (PyTorch)\" para isolar o efeito dos embeddings."),
        largo=True) %}
     <span class="status">treinado</span>
     <dl class="ficha">
-      <dt>Hipótese técnica</dt><dd>Uma rede com embeddings tem um recall da classe fatal maior que o MLP com one-hot, porque colunas como a causa e o município têm muitas categorias.</dd>
-      <dt>Teste</dt><dd>Recall médio nas mesmas fatias da validação cruzada: {{ embeddings.recall_rede|pct }} (embeddings) contra {{ embeddings.recall_mlp|pct }} (one-hot).</dd>
+      <dt>Hipótese técnica</dt><dd>Uma rede com embeddings tem um recall da classe fatal maior que a mesma rede com one-hot, porque colunas como a causa e a BR têm muitas categorias.</dd>
+      <dt>Teste</dt><dd>{{ "A mesma rede" if embeddings.mesma_rede else "A rede contra o MLP do scikit-learn" }}, nas mesmas fatias da validação cruzada.
+        Recall: {{ embeddings.recall_rede|pct }} (embeddings) contra {{ embeddings.recall_onehot|pct }} (one-hot).
+        PR-AUC: {{ embeddings.pr_auc_rede|num(3) }} contra {{ embeddings.pr_auc_onehot|num(3) }}.
+        Os embeddings ganham no recall em {{ embeddings.fatias_a_favor }} de {{ embeddings.fatias }} fatias.</dd>
     </dl>
     {% if grafico_projecao %}
     <p class="nota">Os embeddings das causas de acidente, projetados em 2D (PCA). Cada ponto é uma causa: causas próximas são causas que a rede aprendeu a tratar de modo parecido.

@@ -6,7 +6,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from torch.utils.data import DataLoader, TensorDataset
 
-from features.encoding import CodificadorCategorias
+from features.encoding import CodificadorCategorias, preprocessador
 from colunas import CATEGORICAS, NUMERICAS
 
 import torch
@@ -59,7 +59,7 @@ class RedeEmbeddings(nn.Module):
 class ClassificadorEmbeddings(ClassifierMixin, BaseEstimator):
     def __init__(self, epocas: int = 20, tamanho_lote: int = 512, taxa_aprendizado: float = 0.001,
                  camadas: int = 2, neuronios: int = 64, dropout: float = 0.2, 
-                 class_weight: str | None = "balanced", random_state: int = 2903) -> None:
+                 class_weight: str | None = "balanced", codificacao: str = "embeddings", random_state: int = 2903) -> None:
         self.epocas = epocas
         self.tamanho_lote = tamanho_lote
         self.taxa_aprendizado = taxa_aprendizado
@@ -67,25 +67,48 @@ class ClassificadorEmbeddings(ClassifierMixin, BaseEstimator):
         self.neuronios = neuronios
         self.dropout = dropout
         self.class_weight = class_weight
+        # "embeddings": cada categoria vira um índice e um vetor aprendido; "one-hot": as categorias passam pelo
+        # preprocessador() e entram na mesma rede, sem camadas de embedding. Só a codificação muda (Task 6)
+        self.codificacao = codificacao
         self.random_state = random_state
 
 
-    def fit(self, X: pd.DataFrame, y) -> "ClassificadorEmbeddings":
-        self.codificador_ = CodificadorCategorias().fit(X)
-
-        self.numericas_ = Pipeline([
-            ("imputar", SimpleImputer(strategy="median")),
-            ("padronizar", StandardScaler())
-        ]).fit(X[list(NUMERICAS)])
+    def _entradas(self, X: pd.DataFrame) -> tuple[torch.Tensor, torch.Tensor]:
+        # getattr: os modelos salvos antes da Task 6 não têm o preprocessador_
+        if getattr(self, "preprocessador_", None) is not None:
+            # float32 antes do toarray: a matriz densa fica com metade da memória
+            x = self.preprocessador_.transform(X).astype(np.float32)
+            x_num = torch.tensor(x.toarray() if hasattr(x, "toarray") else x)
+            x_cat = torch.zeros((len(X), 0), dtype=torch.long)  # nenhuma coluna vai para os embeddings
+            return x_cat, x_num
 
         x_cat = torch.tensor(self.codificador_.transform(X), dtype=torch.long)
         x_num = torch.tensor(self.numericas_.transform(X[list(NUMERICAS)]), dtype=torch.float32)
+        return x_cat, x_num
+
+
+    def fit(self, X: pd.DataFrame, y) -> "ClassificadorEmbeddings":
+        if self.codificacao == "one-hot":
+            self.preprocessador_ = preprocessador().fit(X)
+            cardinalidades = []
+        else:
+            self.preprocessador_ = None
+            self.codificador_ = CodificadorCategorias().fit(X)
+
+            self.numericas_ = Pipeline([
+                ("imputar", SimpleImputer(strategy="median")),
+                ("padronizar", StandardScaler())
+            ]).fit(X[list(NUMERICAS)])
+            cardinalidades = self.codificador_.cardinalidades_
+
+        x_cat, x_num = self._entradas(X)
 
         alvo = torch.tensor(np.asarray(y), dtype=torch.float32)
 
         torch.manual_seed(self.random_state)
 
-        self.rede_ = RedeEmbeddings(self.codificador_.cardinalidades_, len(NUMERICAS), self.camadas, self.neuronios, self.dropout)
+        # x_num.shape[1]: com one-hot, as colunas de todas as categorias mais as numéricas
+        self.rede_ = RedeEmbeddings(cardinalidades, x_num.shape[1], self.camadas, self.neuronios, self.dropout)
 
         pos_weight = None
         if self.class_weight == "balanced":
@@ -119,6 +142,7 @@ class ClassificadorEmbeddings(ClassifierMixin, BaseEstimator):
 
         self.classes_ = np.array([False, True]) # nosso resultado previsto
 
+        # com one-hot a rede não tem camadas de embedding, e a tabela fica vazia
         self.embeddings_ = {}
         for coluna, embedding in zip(CATEGORICAS, self.rede_.embeddings):
             vocabulario = self.codificador_.vocabularios_[coluna] # { categoria: indice }
@@ -131,8 +155,7 @@ class ClassificadorEmbeddings(ClassifierMixin, BaseEstimator):
         return self
 
     def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
-        x_cat = torch.tensor(self.codificador_.transform(X), dtype=torch.long)
-        x_num = torch.tensor(self.numericas_.transform(X[list(NUMERICAS)]), dtype=torch.float32)
+        x_cat, x_num = self._entradas(X)
 
         self.rede_.eval()
 
@@ -144,20 +167,31 @@ class ClassificadorEmbeddings(ClassifierMixin, BaseEstimator):
         return np.column_stack([1 - p, p])
 
 
+from functools import partial
+
 from modelos.catalogo import Hiperparametro, ModeloRegistrado, registrar
 
+HIPERPARAMETROS_REDE = (
+    Hiperparametro("epocas", "int", padrao=20, minimo=1, maximo=100),
+    Hiperparametro("tamanho_lote", "escolha", padrao=512, opcoes=(128, 256, 512, 1024)),
+    Hiperparametro("taxa_aprendizado", "float", padrao=0.001, minimo=0.0001, maximo=0.1),
+    Hiperparametro("camadas", "int", padrao=2, minimo=1, maximo=3),
+    Hiperparametro("neuronios", "int", padrao=64, minimo=8, maximo=256),
+    Hiperparametro("dropout", "float", padrao=0.2, minimo=0.0, maximo=0.5),
+    Hiperparametro("class_weight", "escolha", padrao="balanced", opcoes=(None, "balanced")),
+)
 
 registrar(ModeloRegistrado(
     nome="Rede com embeddings (PyTorch)",
     construtor=ClassificadorEmbeddings,
-    hiperparametros=(
-        Hiperparametro("epocas", "int", padrao=20, minimo=1, maximo=100),
-        Hiperparametro("tamanho_lote", "escolha", padrao=512, opcoes=(128, 256, 512, 1024)),
-        Hiperparametro("taxa_aprendizado", "float", padrao=0.001, minimo=0.0001, maximo=0.1),
-        Hiperparametro("camadas", "int", padrao=2, minimo=1, maximo=3),
-        Hiperparametro("neuronios", "int", padrao=64, minimo=8, maximo=256),
-        Hiperparametro("dropout", "float", padrao=0.2, minimo=0.0, maximo=0.5),
-        Hiperparametro("class_weight", "escolha", padrao="balanced", opcoes=(None, "balanced")),
-    ),
+    hiperparametros=HIPERPARAMETROS_REDE,
+    usa_preprocessador=False,
+))
+
+# a mesma rede, com os mesmos hiperparâmetros: só a codificação muda. É o experimento da hipótese técnica
+registrar(ModeloRegistrado(
+    nome="Rede com one-hot (PyTorch)",
+    construtor=partial(ClassificadorEmbeddings, codificacao="one-hot"),
+    hiperparametros=HIPERPARAMETROS_REDE,
     usa_preprocessador=False,
 ))

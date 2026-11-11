@@ -43,21 +43,37 @@ def _contexto_classificadores(modelos) -> dict:
 
 
 def _contexto_embeddings(modelos) -> dict:
-    mlp = modelos.classificadores.get("MLP (scikit-learn)")
     rede = modelos.classificadores.get("Rede com embeddings (PyTorch)")
-    if mlp is None or rede is None:
+    if rede is None:
         return {"embeddings": None}
 
-    recall_mlp = mlp.metricas_fatias["recall"].mean()
-    recall_rede = rede.metricas_fatias["recall"].mean()
-    confirmou = recall_rede > recall_mlp
+    # o teste justo é a mesma rede com one-hot; sem ele (treino antigo), a comparação cai para o MLP do scikit-learn
+    onehot = modelos.classificadores.get("Rede com one-hot (PyTorch)")
+    mesma_rede = onehot is not None
+    comparado = onehot or modelos.classificadores.get("MLP (scikit-learn)")
+    if comparado is None:
+        return {"embeddings": None}
+
+    fatias_rede = rede.metricas_fatias
+    fatias_onehot = comparado.metricas_fatias
+    recall_rede, recall_onehot = fatias_rede["recall"].mean(), fatias_onehot["recall"].mean()
+    # a diferença só conta se for maior que a variação entre as fatias
+    diferenca = (fatias_rede["recall"] - fatias_onehot["recall"])
+    confirmou = diferenca.mean() > 0 and (diferenca > 0).all()
+    nome_onehot = "a mesma rede com one-hot" if mesma_rede else "o MLP do scikit-learn com one-hot"
     return {
         "embeddings": {
-            "recall_mlp": recall_mlp * 100,
+            "mesma_rede": mesma_rede,
+            "recall_onehot": recall_onehot * 100,
             "recall_rede": recall_rede * 100,
+            "pr_auc_onehot": fatias_onehot["precisao_media"].mean(),
+            "pr_auc_rede": fatias_rede["precisao_media"].mean(),
+            "fatias_a_favor": int((diferenca > 0).sum()),
+            "fatias": len(diferenca),
             "leitura": (
-                f"A rede com embeddings encontra {pct(recall_rede * 100)} dos acidentes fatais, e o MLP com one-hot, "
-                f"{pct(recall_mlp * 100)}. A hipótese técnica {'se confirma' if confirmou else 'não se confirma'}."
+                f"A rede com embeddings encontra {pct(recall_rede * 100)} dos acidentes fatais, e {nome_onehot}, "
+                f"{pct(recall_onehot * 100)}. Os embeddings ganham em {int((diferenca > 0).sum())} de {len(diferenca)} fatias: "
+                f"a hipótese técnica {'se confirma' if confirmou else 'não se confirma'}."
             ),
         }
     }

@@ -11,7 +11,7 @@ from sklearn.base import BaseEstimator
 PASTA = Path(__file__).resolve().parents[2] / "modelos_treinados"
 ARQUIVO = PASTA / "modelos.joblib"
 
-CLASSIFICADORES = ["Árvore de decisão", "KNN", "MLP (scikit-learn)", "Rede com embeddings (PyTorch)"]
+CLASSIFICADORES = ["Árvore de decisão", "KNN", "MLP (scikit-learn)", "Rede com embeddings (PyTorch)", "Rede com one-hot (PyTorch)"]
 
 
 @dataclass(frozen=True)
