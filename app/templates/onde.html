@@ -13,8 +13,15 @@
 <div class="grade">
   {% call cartao("Mapa dos acidentes fatais",
        leitura="Cada ponto é um acidente com pelo menos uma morte. Clique num ponto para ver o local, a data e o tipo do acidente.",
-       limite=("O mapa mostra uma amostra aleatória de " ~ (pontos_mostrados|num(0)) ~ " dos " ~ (total_fatais|num(0)) ~ " acidentes fatais, para o navegador não ficar lento.") if pontos_mostrados < total_fatais else none,
+       limite=("Para o navegador não ficar lento, o mapa mostra " ~ (total_fatais|num(0)) ~ " acidentes fatais em páginas de 15.000, por data.") if paginas > 1 else none,
        largo=True) %}
+    {% if paginas > 1 %}
+    <nav class="paginacao topo">
+      {% if pagina > 1 %}<a href="{{ url_for('onde.tela', pagina=pagina - 1, **filtros_atuais.como_dict()) }}">← Anterior</a>{% endif %}
+      <span>Página {{ pagina }} de {{ paginas }} · acidentes {{ primeiro|num(0) }}–{{ ultimo|num(0) }}</span>
+      {% if pagina < paginas %}<a href="{{ url_for('onde.tela', pagina=pagina + 1, **filtros_atuais.como_dict()) }}">Próxima →</a>{% endif %}
+    </nav>
+    {% endif %}
     <div id="mapa"></div>
   {% endcall %}
 </div>

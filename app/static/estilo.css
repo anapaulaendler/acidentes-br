@@ -99,6 +99,8 @@ body {
 .tabela thead th { color: var(--texto-secundario); font-weight: 600; }
 .paginacao { display: flex; gap: 16px; align-items: center; margin-top: 10px; font-size: 14px; }
 .paginacao a { color: var(--azul); }
+.paginacao span { color: var(--texto-secundario); }
+.paginacao.topo { margin: 0 0 10px; }
 
 /* avisos e formulários */
 .aviso { padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; }
