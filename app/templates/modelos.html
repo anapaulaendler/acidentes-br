@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_cartao.html" import cartao %}
+{% from "_lista.html" import lista as lista_paginada with context %}
 {% block conteudo %}
 <header class="cabecalho">
   <h1>Modelos</h1>
@@ -37,6 +38,31 @@
     </dl>
   {% endcall %}
   {% endif %}
+
+  <section class="cartao largo" id="previsao">
+    <h3>Prever os dados adicionados</h3>
+    {% if tem_adicionados %}
+    <p>Os modelos treinados preveem, para cada acidente dos arquivos enviados, se ele foi fatal. A app compara a previsão com o que aconteceu.</p>
+    <form method="post" action="{{ url_for('modelos.prever') }}">
+      <button type="submit">{{ 'Prever de novo' if previsao else 'Prever' }}</button>
+    </form>
+    {% if previsao %}<p class="nota">Última previsão: {{ previsao.feita_em.strftime('%d/%m/%Y %H:%M') }}.</p>{% endif %}
+    {% else %}
+    <p>Ainda não há dados adicionados. <a href="{{ url_for('adicionados.tela') }}">Envie um arquivo na tela Dados adicionados →</a></p>
+    {% endif %}
+  </section>
+
+  {% if previsao %}
+  {% call cartao("Classificadores nos dados adicionados",
+       largo=True) %}
+    <div class="rolagem">{{ tabela_previsao|tabela }}</div>
+  {% endcall %}
+  {% endif %}
 </div>
+
+{% if previsao %}
+<p class="nota" style="margin-top:16px">Em cada modelo: o que ele previu, com ✓ quando acertou e ✗ quando errou. A coluna <b>fatal</b> diz o que aconteceu.</p>
+{{ lista_paginada("Previsões por acidente", lista_previsao, "modelos.tela") }}
+{% endif %}
 {% endif %}
 {% endblock %}
