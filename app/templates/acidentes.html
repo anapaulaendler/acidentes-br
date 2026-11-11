@@ -28,6 +28,26 @@
     {% endif %}
     <div id="mapa"></div>
   {% endcall %}
+
+  {% call cartao("Acidentes por UF", leitura=leitura_uf, largo=True) %}
+    <div class="legenda">
+      <span><i style="background: var(--laranja)"></i>fatal</span>
+      <span><i style="background: var(--azul)"></i>não fatal</span>
+    </div>
+    <div class="barras" role="table" aria-label="Acidentes por UF, fatais e não fatais">
+      {% for barra in barras_uf %}
+      <div class="barra" role="row"
+           title="{{ barra.uf }}: {{ barra.total|num(0) }} acidentes, {{ barra.fatais|num(0) }} fatais ({{ barra.pct_fatais|pct }})">
+        <span class="rotulo" role="rowheader">{{ barra.uf }}</span>
+        <span class="trilho" role="cell">
+          {% if barra.fatais %}<i class="fatal" style="width: {{ barra.largura_fatais }}%"></i>{% endif %}
+          {% if barra.nao_fatais %}<i class="nao-fatal" style="width: {{ barra.largura_nao_fatais }}%"></i>{% endif %}
+        </span>
+        <span class="valor" role="cell">{{ barra.total|num(0) }} <small>· {{ barra.pct_fatais|pct }} fatais</small></span>
+      </div>
+      {% endfor %}
+    </div>
+  {% endcall %}
 </div>
 {% endblock %}
 

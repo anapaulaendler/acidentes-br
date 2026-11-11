@@ -125,3 +125,15 @@ button.secundario { background: var(--superficie); color: var(--azul); border: 1
   .conteudo { padding: 16px; }
   .grade, .dois { grid-template-columns: 1fr; }
 }
+
+/* barras horizontais empilhadas (fatal + não fatal), sem biblioteca */
+.barras { display: grid; gap: 4px; margin: 4px 0; }
+.barra { display: grid; grid-template-columns: 32px 1fr 170px; align-items: center; gap: 10px; font-size: 13px; }
+.barra .trilho { display: flex; gap: 2px; height: 16px; }
+.barra .trilho i { display: block; height: 100%; min-width: 2px; }
+.barra .trilho i:last-child { border-radius: 0 4px 4px 0; }
+.barra .trilho .fatal { background: var(--laranja); }
+.barra .trilho .nao-fatal { background: var(--azul); }
+.barra .valor { color: var(--texto); font-variant-numeric: tabular-nums; }
+.barra .valor small { color: var(--texto-secundario); font-size: 12px; }
+.barra:hover { background: var(--fundo); }
