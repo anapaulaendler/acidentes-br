@@ -36,6 +36,11 @@
       <dt>Hipótese técnica</dt><dd>Uma rede com embeddings tem um recall da classe fatal maior que o MLP com one-hot, porque colunas como a causa e o município têm muitas categorias.</dd>
       <dt>Teste</dt><dd>Recall médio nas mesmas fatias da validação cruzada: {{ embeddings.recall_rede|pct }} (embeddings) contra {{ embeddings.recall_mlp|pct }} (one-hot).</dd>
     </dl>
+    {% if grafico_projecao %}
+    <p class="nota">Os embeddings das causas de acidente, projetados em 2D (PCA). Cada ponto é uma causa: causas próximas são causas que a rede aprendeu a tratar de modo parecido.
+      A cor é a % de acidentes fatais da causa na base. Passe o mouse para ver o nome. O PCA mantém {{ variancia_projecao|pct }} da variação dos vetores.</p>
+    {{ grafico_projecao }}
+    {% endif %}
   {% endcall %}
   {% endif %}
 

@@ -1,8 +1,16 @@
-from flask import Flask, request
+from functools import cache
+
+from flask import Flask, Response, request
+from plotly.offline import get_plotlyjs
 
 from app import estado, filtros, formato
 
 LIMITE_UPLOAD_MB = 300
+
+
+@cache
+def _plotly_js() -> str:
+    return get_plotlyjs()
 
 
 def criar_app() -> Flask:
@@ -30,5 +38,10 @@ def criar_app() -> Flask:
             "filtros_atuais": filtros.ler(request.args),
             "opcoes_filtro": filtros.opcoes(base.limpo) if base else None,
         }
+
+    # a app serve o próprio plotly.js: o gráfico funciona sem internet
+    @app.get("/plotly.js")
+    def plotly_js():
+        return Response(_plotly_js(), mimetype="application/javascript", headers={"Cache-Control": "max-age=86400"})
 
     return app
