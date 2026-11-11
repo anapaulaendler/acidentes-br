@@ -6,7 +6,7 @@ from app import estado, filtros
 
 # a ordem da barra lateral
 TELAS = [
-    ("onde.tela", "Onde?"),
+    ("acidentes.tela", "Acidentes"),
     ("modelos.tela", "Modelos"),
     ("dados.tela", "Dados"),
 ]

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "_cartao.html" import cartao %}
+{% block cabeca %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% endblock %}
+{% block conteudo %}
+<header class="cabecalho">
+  <h1>Acidentes</h1>
+  <p>Onde os acidentes acontecem nas rodovias federais. Use o filtro "Acidentes" da barra lateral para ver só os fatais, só os não fatais ou os dois.</p>
+</header>
+
+<div class="grade">
+  {% call cartao("Mapa dos acidentes (" ~ (total|num(0)) ~ " com os filtros atuais)",
+       leitura="Cada ponto é um acidente: laranja quando teve pelo menos uma morte, azul quando não teve. Clique num ponto para ver o local, a data e o tipo do acidente.",
+       limite=("Para o navegador não ficar lento, o mapa mostra os acidentes em páginas de 15.000, por data.") if paginas > 1 else none,
+       largo=True) %}
+    <div class="legenda">
+      <span><i style="background: var(--laranja)"></i>fatal</span>
+      <span><i style="background: var(--azul)"></i>não fatal</span>
+    </div>
+    {% if paginas > 1 %}
+    <nav class="paginacao topo">
+      {% if pagina > 1 %}<a href="{{ url_for('acidentes.tela', pagina=pagina - 1, **filtros_atuais.como_dict()) }}">← Anterior</a>{% endif %}
+      <span>Página {{ pagina|num(0) }} de {{ paginas|num(0) }} · acidentes {{ primeiro|num(0) }}–{{ ultimo|num(0) }}</span>
+      {% if pagina < paginas %}<a href="{{ url_for('acidentes.tela', pagina=pagina + 1, **filtros_atuais.como_dict()) }}">Próxima →</a>{% endif %}
+    </nav>
+    {% endif %}
+    <div id="mapa"></div>
+  {% endcall %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const pontos = {{ pontos|tojson }};
+  const mapa = L.map("mapa", { preferCanvas: true }).setView([-14.5, -51], 4);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18,
+    attribution: "&copy; OpenStreetMap",
+  }).addTo(mapa);
+  // os não fatais primeiro: os fatais ficam por cima e não somem no meio dos outros
+  const emOrdem = [...pontos.filter((p) => !p[2]), ...pontos.filter((p) => p[2])];
+  for (const [lat, lon, fatal, descricao] of emOrdem) {
+    L.circleMarker([lat, lon], { radius: 3, color: fatal ? "#eb6834" : "#2a78d6", weight: 0, fillOpacity: 0.6 })
+      // o texto vem do arquivo enviado: entra como texto, nunca como HTML
+      .bindPopup(() => Object.assign(document.createElement("span"), { textContent: descricao }))
+      .addTo(mapa);
+  }
+  if (pontos.length) {
+    mapa.fitBounds(pontos.map(([lat, lon]) => [lat, lon]), { padding: [20, 20] });
+  }
+</script>
+{% endblock %}
