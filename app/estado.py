@@ -17,7 +17,8 @@ from modelos import treinados
 RAIZ = Path(__file__).resolve().parent.parent
 PASTA_RAW = RAIZ / "data" / "raw"
 PASTA_ADICIONADOS = RAIZ / "data" / "adicionados"
-AMOSTRA = RAIZ / "data" / "amostras" / "acidentes_pr_2024.csv"
+# os acidentes da demonstração de "produção": ficam fora da base de treino
+PRODUCAO = RAIZ / "data" / "amostras" / "producao_100.csv"
 ANOS_BASE_COMPLETA = range(2017, 2027)
 
 
@@ -77,12 +78,24 @@ def tem_base_completa() -> bool:
     return all((PASTA_RAW / f"datatran{ano}.csv").exists() for ano in ANOS_BASE_COMPLETA)
 
 
-def _base_inicial() -> tuple[str, pd.DataFrame]:
-    if tem_base_completa():
-        partes = [carregar(PASTA_RAW / f"datatran{ano}.csv") for ano in ANOS_BASE_COMPLETA]
-        return f"Base completa PRF {ANOS_BASE_COMPLETA[0]}–{ANOS_BASE_COMPLETA[-1]}", pd.concat(partes, ignore_index=True)
+def _sem_producao(bruto: pd.DataFrame) -> pd.DataFrame:
+    """Tira da base os acidentes da amostra de produção: o treino nunca vê esses acidentes."""
+    if not PRODUCAO.exists():
+        return bruto
 
-    return "Amostra PR 2024", carregar(AMOSTRA)
+    producao = carregar(PRODUCAO).drop_duplicates()
+    # o merge compara todas as colunas; o indicator diz se a linha também está na produção
+    marcado = bruto.merge(producao, how="left", indicator=True)
+    return bruto[(marcado["_merge"] == "left_only").to_numpy()]
+
+
+def _base_inicial() -> tuple[str, pd.DataFrame | None]:
+    """A base completa da PRF, se os arquivos estão em data/raw/; sem eles, a base começa só com os arquivos enviados."""
+    if not tem_base_completa():
+        return "Arquivos enviados", None
+
+    partes = [carregar(PASTA_RAW / f"datatran{ano}.csv") for ano in ANOS_BASE_COMPLETA]
+    return f"Base completa PRF {ANOS_BASE_COMPLETA[0]}–{ANOS_BASE_COMPLETA[-1]}", _sem_producao(pd.concat(partes, ignore_index=True))
 
 
 def arquivos_adicionados() -> list[Path]:
@@ -92,14 +105,25 @@ def arquivos_adicionados() -> list[Path]:
     return sorted(PASTA_ADICIONADOS.iterdir())
 
 
-def iniciar(com_modelos: bool = True) -> Base:
-    """Monta a base inicial com tudo o que já foi adicionado, e carrega os modelos treinados."""
-    global _modelos, _ultima_comparacao
+def iniciar(com_modelos: bool = True, para_treino: bool = False) -> Base | None:
+    """Monta a base inicial com tudo o que já foi adicionado, e carrega os modelos treinados.
 
-    nome, bruto = _base_inicial()
+    Com para_treino=True, a amostra de produção sai também dos arquivos adicionados: se alguém
+    enviou o producao_100.csv pela app, o treino e a validação cruzada continuam sem esses acidentes.
+    """
+    global _base, _modelos, _ultima_comparacao
+
+    nome, inicial = _base_inicial()
     adicionados = arquivos_adicionados()
-    partes = [bruto] + [carregar(arquivo) for arquivo in adicionados]
-    _guardar(nome, pd.concat(partes, ignore_index=True), len(adicionados))
+    partes = ([] if inicial is None else [inicial]) + [carregar(arquivo) for arquivo in adicionados]
+    if partes:
+        bruto = pd.concat(partes, ignore_index=True)
+        if para_treino:
+            bruto = _sem_producao(bruto)
+        _guardar(nome, bruto, len(adicionados))
+    else:
+        # sem base: as telas mandam para a tela Dados, onde o primeiro arquivo enviado vira a base
+        _base = None
 
     _modelos = treinados.carregar() if com_modelos else None
     _ultima_comparacao = None
@@ -113,6 +137,8 @@ def adicionar(conteudo: bytes, nome_arquivo: str, formato: str) -> Comparacao:
     # se o arquivo for inválido, o erro sobe aqui, antes de salvar qualquer coisa
     novos = carregar(io.BytesIO(conteudo), formato)
     anterior = _base
+    if anterior is None:
+        return _primeira_base(conteudo, nome_arquivo, novos)
 
     bruto = pd.concat([anterior.bruto, novos], ignore_index=True)
     limpo = _limpar(bruto)
@@ -120,9 +146,7 @@ def adicionar(conteudo: bytes, nome_arquivo: str, formato: str) -> Comparacao:
 
     # um arquivo que só repete a base não muda nada e não é salvo
     if linhas_novas:
-        PASTA_ADICIONADOS.mkdir(parents=True, exist_ok=True)
-        destino = PASTA_ADICIONADOS / f"{datetime.now():%Y%m%d-%H%M%S}_{secure_filename(nome_arquivo)}"
-        destino.write_bytes(conteudo)
+        _salvar_adicionado(conteudo, nome_arquivo)
         _guardar(anterior.nome, bruto, anterior.arquivos_adicionados + 1, limpo)
 
     novos_limpos = _limpar(novos)
@@ -134,6 +158,23 @@ def adicionar(conteudo: bytes, nome_arquivo: str, formato: str) -> Comparacao:
         modelo=comparar_modelos(_modelos.classificadores, novos_limpos) if _modelos else None,
     )
     return _ultima_comparacao
+
+
+def _primeira_base(conteudo: bytes, nome_arquivo: str, novos: pd.DataFrame) -> Comparacao:
+    """Sem base inicial, o primeiro arquivo enviado vira a base: não há com o que comparar."""
+    global _ultima_comparacao
+
+    _salvar_adicionado(conteudo, nome_arquivo)
+    _guardar("Arquivos enviados", novos, 1)
+    _ultima_comparacao = None
+    linhas = len(_base.limpo)
+    return Comparacao(arquivo=nome_arquivo, linhas_arquivo=linhas, linhas_novas=linhas, perfil=pd.DataFrame(), modelo=None)
+
+
+def _salvar_adicionado(conteudo: bytes, nome_arquivo: str) -> None:
+    PASTA_ADICIONADOS.mkdir(parents=True, exist_ok=True)
+    destino = PASTA_ADICIONADOS / f"{datetime.now():%Y%m%d-%H%M%S}_{secure_filename(nome_arquivo)}"
+    destino.write_bytes(conteudo)
 
 
 def remover_adicionados() -> None:

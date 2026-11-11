@@ -17,7 +17,8 @@ from modelos.treino import treinar
 
 def main() -> None:
     inicio = perf_counter()
-    base = estado.iniciar(com_modelos=False)
+    # sem a amostra de produção (data/amostras/producao_100.csv): ela fica fora do treino e da validação
+    base = estado.iniciar(com_modelos=False, para_treino=True)
     df = base.limpo
     print(f"{base.nome} + {base.arquivos_adicionados} arquivo(s) adicionado(s): {len(df):,} acidentes")
 
