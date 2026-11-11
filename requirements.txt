@@ -1,6 +1,7 @@
 pandas>=2.2
+pyarrow>=17  # o modelos.joblib guarda colunas de texto do pandas em pyarrow
 numpy>=1.26
-scikit-learn>=1.5
+scikit-learn==1.8.0  # a versão que treinou modelos_treinados/modelos.joblib
 flask>=3.1
 plotly>=5.24
 torch>=2.4
