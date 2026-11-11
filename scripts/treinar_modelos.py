@@ -19,6 +19,8 @@ def main() -> None:
     inicio = perf_counter()
     # sem a amostra de produção (data/amostras/producao_100.csv): ela fica fora do treino e da validação
     base = estado.iniciar(com_modelos=False, para_treino=True)
+    if base is None:
+        raise SystemExit("Sem base para treinar: coloque os datatran*.csv em data/raw/ ou envie um arquivo pela tela Dados.")
     df = base.limpo
     print(f"{base.nome} + {base.arquivos_adicionados} arquivo(s) adicionado(s): {len(df):,} acidentes")
 

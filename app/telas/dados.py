@@ -52,6 +52,9 @@ def _leitura_comparacao(comparacao) -> str:
 @bp.get("")
 def tela():
     base = estado.base()
+    if base is None:
+        return render_template("dados.html", comparacao=None, modelos=estado.modelos())
+
     comparacao = estado.ultima_comparacao()
     selecao = filtros.ler(request.args)
     df = filtros.aplicar(base.limpo, selecao)
