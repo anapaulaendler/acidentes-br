@@ -29,6 +29,7 @@ def _pontos_do_mapa(df, pagina: int) -> tuple[list, int, int, int]:
     return pontos, total, pagina, paginas
 
 
+@bp.get("/")
 @bp.get("/onde")
 @com_base_filtrada
 def tela(df, _selecao):

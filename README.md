@@ -30,9 +30,7 @@ O mapa precisa de internet (fundo do OpenStreetMap). O resto da app funciona sem
 
 | Tela | O que mostra |
 |---|---|
-| Quando? | A letalidade por hora, dia da semana e mês, e a gravidade geral |
 | Onde? | O mapa dos acidentes fatais, as personas dos trechos (K-Means) e a comparação simples × dupla dentro de cada persona |
-| Condições | A letalidade por causa, clima e traçado, e a regressão por trecho (coeficientes, qualidade e sensibilidade) |
 | Modelos | Um cartão por modelo: a pergunta, os dados, o resultado e o limite |
 | Dados | O upload, o relatório da limpeza, a mudança das categorias em 2021 e a tabela dos acidentes |
 
