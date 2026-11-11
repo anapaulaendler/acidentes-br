@@ -12,6 +12,7 @@ MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "
 GRAVIDADE = ["Sem Vítimas", "Com Vítimas Feridas", "Com Vítimas Fatais"]
 
 
+@bp.get("/")
 @bp.get("/quando")
 @com_base_filtrada
 def tela(df, selecao):

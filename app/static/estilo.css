@@ -60,16 +60,6 @@ body {
 .cabecalho h1 { margin: 0 0 4px; font-size: 26px; }
 .cabecalho p { margin: 0 0 20px; color: var(--texto-secundario); }
 
-.hipotese {
-  background: var(--azul-fundo);
-  border-radius: 10px;
-  padding: 16px 20px;
-  margin-bottom: 20px;
-}
-.hipotese .numeros { display: flex; gap: 32px; flex-wrap: wrap; margin-top: 10px; }
-.hipotese .numero b { display: block; font-size: 24px; }
-.hipotese .numero span { font-size: 13px; color: var(--texto-secundario); }
-
 .grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 
 .cartao {

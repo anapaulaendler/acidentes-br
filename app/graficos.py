@@ -6,7 +6,6 @@ from markupsafe import Markup
 AZUL, LARANJA, VERDE, AMARELO = "#2a78d6", "#eb6834", "#1baf7a", "#eda100"
 CINZA_TEXTO, CINZA_GRADE = "#52514e", "#e5e4e0"
 
-CORES_PISTA = {"Simples": LARANJA, "Dupla": AZUL, "Múltipla": VERDE}
 CORES_SERIE = [AZUL, LARANJA, VERDE, AMARELO]
 
 
@@ -69,17 +68,6 @@ def barras_agrupadas(df: pd.DataFrame, titulo: str = "", cores: dict[str, str] |
     fig.update_xaxes(title=titulo, range=[0, (0 if pd.isna(maximo) else float(maximo)) * 1.2 + 1])
     fig.update_yaxes(showgrid=False)
     return html(fig)
-
-
-def linhas(df: pd.DataFrame, titulo_y: str = "", cores: dict[str, str] | None = None, altura: int = 320) -> Markup:
-    fig = go.Figure()
-    for i, coluna in enumerate(df.columns):
-        cor = (cores or {}).get(coluna, CORES_SERIE[i % len(CORES_SERIE)])
-        fig.add_scatter(name=str(coluna), x=df.index, y=df[coluna], mode="lines+markers", line=dict(color=cor, width=2),
-                        marker=dict(size=8), hovertemplate=f"{coluna}<br>%{{x}}: %{{y:.1f}}<extra></extra>")
-
-    fig.update_xaxes(dtick=1)
-    return html(_layout(fig, titulo_y, altura))
 
 
 def pizza(serie: pd.Series, altura: int = 320) -> Markup:
