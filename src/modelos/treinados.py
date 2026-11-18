@@ -5,19 +5,27 @@ from datetime import datetime
 from pathlib import Path
 
 import joblib
+import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator
 
 PASTA = Path(__file__).resolve().parents[2] / "modelos_treinados"
 ARQUIVO = PASTA / "modelos.joblib"
 
-CLASSIFICADORES = ["Regressão logística", "Árvore de decisão", "KNN", "MLP (scikit-learn)", "Rede com embeddings (PyTorch)", "Rede com one-hot (PyTorch)"]
+CLASSIFICADORES = [
+    "Regressão logística", "Árvore de decisão", "KNN",  # clássicos
+    "Random Forest", "Gradient Boosting",  # ensembles
+    "MLP (scikit-learn)", "Rede com embeddings (PyTorch)", "Rede com one-hot (PyTorch)",  # redes neurais
+]
 
 
 @dataclass(frozen=True)
 class Classificador:
     modelo: BaseEstimator
-    metricas_fatias: pd.DataFrame  # uma linha por fatia
+    metricas_fatias: pd.DataFrame  # a validação cruzada no treino: uma linha por fatia
+    metricas_treino: dict[str, float]  # o modelo final numa amostra do treino
+    metricas_teste: dict[str, float]  # o modelo final no teste, que ele nunca viu
+    probabilidades_teste: np.ndarray  # a probabilidade de fatal de cada acidente do teste
     # os hiperparâmetros do treino; None = os padrões do catálogo
     parametros: dict | None = None
 
@@ -28,6 +36,8 @@ class ModelosTreinados:
     base: str
     acidentes: int
     anos: str
+    acidentes_treino: int
+    alvo_teste: np.ndarray  # fatal ou não, na mesma ordem das probabilidades_teste
     classificadores: dict[str, Classificador]
 
 

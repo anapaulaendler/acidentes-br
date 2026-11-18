@@ -50,7 +50,8 @@ O modelo usa:
 
 ### Codificação (`src/features/encoding.py`)
 
-- **One-hot** (regressão logística, árvore, KNN, MLP e a rede com one-hot): cada categoria vira uma coluna de 0 ou 1. As numéricas recebem a mediana quando faltam e são padronizadas.
+- **One-hot** (regressão logística, árvore, KNN, Random Forest, MLP e a rede com one-hot): cada categoria vira uma coluna de 0 ou 1. As numéricas recebem a mediana quando faltam e são padronizadas.
+- **Ordinal** (Gradient Boosting): o `HistGradientBoostingClassifier` não aceita a matriz esparsa do one-hot. Cada categoria vira um número inteiro, e o modelo trata a coluna como categórica, sem ordem. Acima de 255 categorias, as mais raras viram uma só.
 - **Embeddings** (a rede com embeddings): cada categoria vira um número inteiro, e a rede aprende um vetor para ela durante o treino. Categorias parecidas tendem a ficar com vetores próximos. O `src/modelos/projecao.py` projeta os vetores das causas em 2D por PCA.
 
 ### Os modelos e os hiperparâmetros
@@ -62,6 +63,8 @@ Todos os modelos estão em `src/modelos/`. Cada um se registra no catálogo (`ca
 | Regressão logística | `C`, `class_weight` | C: o inverso da regularização (menor = coeficientes mais contidos). É o modelo mais simples e serve de base para os outros. |
 | Árvore de decisão | `profundidade`, `minimo_folha`, `class_weight` | Profundidade: quantas perguntas a árvore faz em sequência (mais profunda = decora mais). Mínimo por folha: quantos acidentes cada folha precisa ter (maior = regras mais gerais). |
 | KNN | `vizinhos`, `pesos` | Vizinhos: quantos acidentes parecidos votam. Pesos: `distance` dá mais voto aos mais próximos. |
+| Random Forest | `arvores`, `profundidade`, `minimo_folha`, `class_weight` | *Bagging*: cada árvore treina com uma amostra sorteada dos acidentes, e as árvores votam juntas. Mais árvores = voto mais estável. |
+| Gradient Boosting | `iteracoes`, `taxa_aprendizado`, `profundidade`, `class_weight` | *Boosting*: cada árvore nova corrige o erro das anteriores. A taxa de aprendizado é o peso de cada correção. Para sozinho quando a validação interna para de melhorar. |
 | MLP (scikit-learn) | `camadas`, `neuronios`, `alpha`, `taxa_aprendizado` | O tamanho da rede, a regularização (alpha alto = rede mais "contida") e o tamanho do passo do treino. Para sozinho quando a validação interna para de melhorar. |
 | Redes em PyTorch (embeddings e one-hot) | `epocas`, `tamanho_lote`, `taxa_aprendizado`, `camadas`, `neuronios`, `dropout`, `class_weight` | As duas redes são iguais e só mudam a codificação, para isolar o efeito dos embeddings. Dropout desliga neurônios ao acaso no treino, o que reduz o overfitting. |
 
@@ -69,13 +72,16 @@ O `class_weight="balanced"` dá mais peso à classe fatal no treino. Os acidente
 
 ### Como os modelos são avaliados (`src/avaliacao.py`)
 
-- **Validação cruzada estratificada:** 5 fatias. Cada fatia mantém a mesma proporção de fatais. O modelo treina com as outras fatias e é medido na fatia que não viu. O resultado é a média ± o desvio entre as fatias.
+- **Treino e teste:** 80% dos acidentes para o treino e 20% para o teste, estratificado (`train_test_split(stratify=y)`). O teste só é usado uma vez, para medir o modelo final.
+- **Validação cruzada estratificada, só no treino:** 5 fatias. Cada fatia mantém a mesma proporção de fatais. O modelo treina com as outras fatias e é medido na fatia que não viu. O resultado é a média ± o desvio entre as fatias.
 - **Recall é a métrica principal:** é a parte dos acidentes fatais de verdade que o modelo encontra. Deixar passar um acidente fatal custa mais que um alarme falso.
 - **As outras métricas:**
   - precisão: dos acidentes que o modelo chamou de fatais, quantos eram;
   - F1: o equilíbrio entre recall e precisão;
   - PR-AUC: a qualidade da probabilidade, sem depender do limiar;
+  - ROC-AUC: a chance de o modelo dar uma probabilidade maior a um acidente fatal que a um não fatal;
   - acurácia: aparece, mas engana, porque um modelo que diz "não fatal" para tudo já acerta quase sempre.
+- **Treino × teste:** o modelo final também é medido numa amostra de 50 mil acidentes do treino. Se o treino é muito melhor que o teste, o modelo decorou os acidentes (*overfitting*).
 - **Limiar:** 0,5 na probabilidade de ser fatal.
 - **Amostra de produção:** `data/amostras/producao_100.csv` nunca entra no treino. Ela simula dados novos, que os modelos não viram.
 
@@ -93,7 +99,7 @@ src/                  dados e modelos
 ├── trechos.py        os trechos de rodovia da regressão
 ├── avaliacao.py      a validação cruzada e as métricas
 ├── features/         a codificação das colunas
-└── modelos/          regressão logística, árvore de decisão, KNN, MLP, rede com embeddings (PyTorch) e o catálogo
+└── modelos/          regressão logística, árvore de decisão, KNN, Random Forest, Gradient Boosting, MLP, rede com embeddings (PyTorch) e o catálogo
 scripts/
 ├── treinar_modelos.py   treina e salva os modelos em modelos_treinados/
 └── gerar_producao.py    gera a amostra de produção (data/amostras/producao_100.csv)

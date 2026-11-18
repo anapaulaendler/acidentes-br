@@ -1,5 +1,8 @@
 """Treina os modelos com a base completa da PRF (data/raw/) e salva em modelos_treinados/.
 
+A base é dividida em 80% de treino e 20% de teste, estratificado. A validação cruzada roda só no treino;
+o modelo final treina com o treino todo e é medido uma vez no teste.
+
 Rode da raiz do projeto:
     python3 -m scripts.treinar_modelos                                  # todos os modelos
     python3 -m scripts.treinar_modelos "Rede com one-hot (PyTorch)"     # só esses; os outros vêm do arquivo salvo
@@ -12,7 +15,8 @@ from time import perf_counter
 import pandas as pd
 
 import base
-from avaliacao import FATIAS, montar_features, validacao_cruzada
+from avaliacao import FATIAS, amostra_de_treino, dividir_treino_teste, metricas, montar_features, validacao_cruzada
+from colunas import ALVO
 from modelos import treinados
 from modelos.treino import treinar
 
@@ -23,23 +27,34 @@ def main(nomes: list[str]) -> None:
     df = base.base_de_treino()
     print(f"{base.NOME}: {len(df):,} acidentes")
 
+    # 80% para o treino (com a validação cruzada dentro dele) e 20% para o teste final
+    treino, teste = dividir_treino_teste(df)
+    amostra = amostra_de_treino(treino)
+    print(f"Treino: {len(treino):,} acidentes. Teste: {len(teste):,} acidentes.")
+
     classificadores = {}
     if nomes != treinados.CLASSIFICADORES:
-        # só alguns modelos: os outros continuam como estão no arquivo salvo, se a base for a mesma
+        # só alguns modelos: os outros continuam como estão no arquivo salvo, se a base e a divisão forem as mesmas
         anteriores = treinados.carregar()
         if anteriores is not None:
-            if anteriores.acidentes != len(df):
-                raise SystemExit(f"A base mudou desde o último treino ({anteriores.acidentes:,} → {len(df):,} acidentes): treine todos os modelos.")
+            if getattr(anteriores, "acidentes_treino", None) != len(treino) or anteriores.acidentes != len(df):
+                raise SystemExit("A base ou a divisão treino/teste mudou desde o último treino: treine todos os modelos.")
             classificadores = dict(anteriores.classificadores)
 
     for nome in nomes:
-        print(f"{nome}: validação cruzada ({FATIAS} fatias)...")
-        por_fatia = validacao_cruzada(nome, df)
+        print(f"{nome}: validação cruzada no treino ({FATIAS} fatias)...")
+        por_fatia = validacao_cruzada(nome, treino)
 
-        # o modelo salvo treina com a base toda; a validação cruzada mede como ele se sai em acidentes que não viu
-        print(f"{nome}: treino com a base toda...")
-        modelo = treinar(nome, montar_features(df))
-        classificadores[nome] = treinados.Classificador(modelo=modelo, metricas_fatias=por_fatia)
+        print(f"{nome}: treino final e teste...")
+        modelo = treinar(nome, montar_features(treino))
+        probabilidades = modelo.predict_proba(montar_features(teste))[:, 1]
+        classificadores[nome] = treinados.Classificador(
+            modelo=modelo,
+            metricas_fatias=por_fatia,
+            metricas_treino=metricas(amostra[ALVO], modelo.predict_proba(montar_features(amostra))[:, 1]),
+            metricas_teste=metricas(teste[ALVO], probabilidades),
+            probabilidades_teste=probabilidades.astype("float32"),
+        )
 
         # salva a cada modelo: se o treino cair no meio, os modelos prontos ficam salvos
         treinados.salvar(treinados.ModelosTreinados(
@@ -47,9 +62,17 @@ def main(nomes: list[str]) -> None:
             base=base.NOME,
             acidentes=len(df),
             anos=f"{df['ano'].min()}–{df['ano'].max()}",
+            acidentes_treino=len(treino),
+            alvo_teste=teste[ALVO].to_numpy(),
             classificadores={n: classificadores[n] for n in treinados.CLASSIFICADORES if n in classificadores},
         ))
-        print(pd.DataFrame({"média": por_fatia.mean(), "desvio": por_fatia.std()}).round(3).to_string())
+        resultado = pd.DataFrame({
+            "validação (média)": por_fatia.mean(),
+            "validação (desvio)": por_fatia.std(),
+            "treino": classificadores[nome].metricas_treino,
+            "teste": classificadores[nome].metricas_teste,
+        })
+        print(resultado.round(3).to_string(), flush=True)
 
     print(f"Salvo em {treinados.ARQUIVO} ({perf_counter() - inicio:.0f} s)")
 
