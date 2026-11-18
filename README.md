@@ -50,7 +50,7 @@ O modelo usa:
 
 ### Codificação (`src/features/encoding.py`)
 
-- **One-hot** (árvore, KNN, MLP e a rede com one-hot): cada categoria vira uma coluna de 0 ou 1. As numéricas recebem a mediana quando faltam e são padronizadas.
+- **One-hot** (regressão logística, árvore, KNN, MLP e a rede com one-hot): cada categoria vira uma coluna de 0 ou 1. As numéricas recebem a mediana quando faltam e são padronizadas.
 - **Embeddings** (a rede com embeddings): cada categoria vira um número inteiro, e a rede aprende um vetor para ela durante o treino. Categorias parecidas tendem a ficar com vetores próximos. O `src/modelos/projecao.py` projeta os vetores das causas em 2D por PCA.
 
 ### Os modelos e os hiperparâmetros
@@ -59,6 +59,7 @@ Todos os modelos estão em `src/modelos/`. Cada um se registra no catálogo (`ca
 
 | Modelo | Hiperparâmetros | O que cada um muda |
 |---|---|---|
+| Regressão logística | `C`, `class_weight` | C: o inverso da regularização (menor = coeficientes mais contidos). É o modelo mais simples e serve de base para os outros. |
 | Árvore de decisão | `profundidade`, `minimo_folha`, `class_weight` | Profundidade: quantas perguntas a árvore faz em sequência (mais profunda = decora mais). Mínimo por folha: quantos acidentes cada folha precisa ter (maior = regras mais gerais). |
 | KNN | `vizinhos`, `pesos` | Vizinhos: quantos acidentes parecidos votam. Pesos: `distance` dá mais voto aos mais próximos. |
 | MLP (scikit-learn) | `camadas`, `neuronios`, `alpha`, `taxa_aprendizado` | O tamanho da rede, a regularização (alpha alto = rede mais "contida") e o tamanho do passo do treino. Para sozinho quando a validação interna para de melhorar. |
@@ -92,7 +93,7 @@ src/                  dados e modelos
 ├── trechos.py        os trechos de rodovia da regressão
 ├── avaliacao.py      a validação cruzada e as métricas
 ├── features/         a codificação das colunas
-└── modelos/          árvore de decisão, KNN, MLP, rede com embeddings (PyTorch) e o catálogo
+└── modelos/          regressão logística, árvore de decisão, KNN, MLP, rede com embeddings (PyTorch) e o catálogo
 scripts/
 ├── treinar_modelos.py   treina e salva os modelos em modelos_treinados/
 └── gerar_producao.py    gera a amostra de produção (data/amostras/producao_100.csv)
