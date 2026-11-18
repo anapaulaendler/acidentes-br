@@ -8,12 +8,18 @@ import joblib
 import pandas as pd
 from sklearn.base import BaseEstimator
 
-from modelos.regressao_trechos import ResultadoRegressao
-
 PASTA = Path(__file__).resolve().parents[2] / "modelos_treinados"
 ARQUIVO = PASTA / "modelos.joblib"
 
-CLASSIFICADOR = "MLP (scikit-learn)"
+CLASSIFICADORES = ["Árvore de decisão", "KNN", "MLP (scikit-learn)", "Rede com embeddings (PyTorch)", "Rede com one-hot (PyTorch)"]
+
+
+@dataclass(frozen=True)
+class Classificador:
+    modelo: BaseEstimator
+    metricas_fatias: pd.DataFrame  # uma linha por fatia
+    # os hiperparâmetros escolhidos na tela; None = os padrões do catálogo (treino pelo script)
+    parametros: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -22,19 +28,12 @@ class ModelosTreinados:
     base: str
     acidentes: int
     anos: str
-    regressao: ResultadoRegressao | None
-    classificador: BaseEstimator
-    metricas_fatias: pd.DataFrame  # uma linha por fatia da validação cruzada
-    linhas_classificador: int
-
-    @property
-    def metricas_classificador(self) -> pd.Series:
-        return self.metricas_fatias.mean()
+    classificadores: dict[str, Classificador]
 
 
 def salvar(modelos: ModelosTreinados) -> None:
     PASTA.mkdir(exist_ok=True)
-    joblib.dump(modelos, ARQUIVO)
+    joblib.dump(modelos, ARQUIVO, compress=3)
 
 
 def carregar() -> ModelosTreinados | None:

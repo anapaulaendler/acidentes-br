@@ -1,44 +1,211 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+import pandas as pd
+import plotly.graph_objects as go
 
-from analises.comparacao import NOMES_METRICAS
-from app import estado
-from app.formato import num, pct
+from app import estado, filtros
+from app.formato import grafico, num, pct
 from app.telas import com_base_filtrada
+from app.telas.dados import paginar
+from colunas import ALVO
+from modelos.catalogo import CATALOGO, criar_modelo
+from modelos.projecao import projetar_2d
+from modelos.treinados import CLASSIFICADORES
 
 bp = Blueprint("modelos", __name__)
 
+NOMES_METRICAS = {
+    "recall": "recall",
+    "precisao": "precisão",
+    "f1": "F1",
+    "precisao_media": "PR-AUC",
+    "acuracia": "acurácia",
+}
 
-def _contexto_regressao(resultado) -> dict:
-    if resultado is None:
-        return {"regressao": None}
 
-    validacao = resultado.metricas.loc["validação cruzada"]
-    sensibilidade = resultado.sensibilidade["pista simples 0% → 100% (pp)"].dropna()
-    efeito = resultado.coeficientes.loc["pct_pista_simples", "efeito de 0% → 100%"]
+def _contexto_classificadores(modelos) -> dict:
+    linhas = {}
+    for nome, classificador in modelos.classificadores.items():
+        fatias = classificador.metricas_fatias.rename(columns=NOMES_METRICAS)
+        linhas[nome] = {
+            metrica: f"{num(media, 3)} ± {num(desvio, 3)}"
+            for metrica, media, desvio in zip(fatias.columns, fatias.mean(), fatias.std())
+        }
+
+    recall = {nome: c.metricas_fatias["recall"].mean() for nome, c in modelos.classificadores.items()}
+    melhor = max(recall, key=recall.get)
     return {
-        "regressao": resultado,
-        "variaveis_regressao": len(resultado.coeficientes),
-        "efeito_simples": None if efeito != efeito else f"{'+' if efeito >= 0 else ''}{num(efeito)}",
-        "intervalo_simples": f"{num(sensibilidade.min())} a {num(sensibilidade.max())} pp" if len(sensibilidade) else None,
-        "r2_regressao": num(validacao["R²"], 2),
-        "mae_regressao": num(validacao["MAE"], 2),
-    }
-
-
-def _contexto_classificador(modelos) -> dict:
-    fatias = modelos.metricas_fatias.rename(columns=NOMES_METRICAS)
-    metricas = fatias.mean()
-    tabela = fatias.T.rename(columns=lambda i: f"fatia {i + 1}")
-    tabela["média"] = metricas
-    tabela["desvio"] = fatias.std()
-    return {
-        "fatias": len(fatias),
-        "metricas_classificador": tabela,
-        "leitura_classificador": (
-            f"Na média das {len(fatias)} fatias, o MLP tem acurácia de {pct(metricas['acurácia'] * 100)}, mas encontra só {pct(metricas['recall'] * 100)} dos acidentes fatais. "
-            "Com uma classe rara, a acurácia engana: o recall e a precisão mostram o desempenho real."
+        "fatias": len(next(iter(modelos.classificadores.values())).metricas_fatias),
+        "tabela_classificadores": pd.DataFrame.from_dict(linhas, orient="index"),
+        "leitura_classificadores": (
+            f"O modelo que encontra mais acidentes fatais é {melhor} ({pct(recall[melhor] * 100)}). "
         ),
     }
+
+
+def _contexto_embeddings(modelos) -> dict:
+    rede = modelos.classificadores.get("Rede com embeddings (PyTorch)")
+    if rede is None:
+        return {"embeddings": None}
+
+    # o teste justo é a mesma rede com one-hot; sem ele (treino antigo), a comparação cai para o MLP do scikit-learn
+    onehot = modelos.classificadores.get("Rede com one-hot (PyTorch)")
+    mesma_rede = onehot is not None
+    comparado = onehot or modelos.classificadores.get("MLP (scikit-learn)")
+    if comparado is None:
+        return {"embeddings": None}
+
+    fatias_rede = rede.metricas_fatias
+    fatias_onehot = comparado.metricas_fatias
+    recall_rede, recall_onehot = fatias_rede["recall"].mean(), fatias_onehot["recall"].mean()
+    # a diferença só conta se for maior que a variação entre as fatias
+    diferenca = (fatias_rede["recall"] - fatias_onehot["recall"])
+    confirmou = diferenca.mean() > 0 and (diferenca > 0).all()
+    diferenca_pr_auc = fatias_rede["precisao_media"] - fatias_onehot["precisao_media"]
+    nome_onehot = "a mesma rede com one-hot" if mesma_rede else "o MLP do scikit-learn com one-hot"
+    return {
+        "embeddings": {
+            "mesma_rede": mesma_rede,
+            "recall_onehot": recall_onehot * 100,
+            "recall_rede": recall_rede * 100,
+            "pr_auc_onehot": fatias_onehot["precisao_media"].mean(),
+            "pr_auc_rede": fatias_rede["precisao_media"].mean(),
+            "fatias_a_favor": int((diferenca > 0).sum()),
+            "fatias_a_favor_pr_auc": int((diferenca_pr_auc > 0).sum()),
+            "fatias": len(diferenca),
+            "leitura": (
+                f"A rede com embeddings encontra {pct(recall_rede * 100)} dos acidentes fatais, e {nome_onehot}, "
+                f"{pct(recall_onehot * 100)}. "
+                + (
+                    "Os embeddings ganham no recall em todas as fatias: a hipótese técnica se confirma."
+                    if confirmou
+                    else f"Os embeddings ganham no recall em só {int((diferenca > 0).sum())} de {len(diferenca)} fatias: "
+                    "a hipótese técnica não se confirma. A diferença entre as duas redes é pequena, "
+                    "menor que a variação entre as fatias."
+                )
+            ),
+        }
+    }
+
+
+COLUNA_PROJECAO = "causa_acidente"
+
+
+def _contexto_projecao(rede, base: pd.DataFrame) -> dict:
+    projecao, variancia = projetar_2d(rede.modelo.embeddings_[COLUNA_PROJECAO])
+
+    # a cor de cada ponto: a % de acidentes fatais daquela causa na base
+    letalidade = base.groupby(COLUNA_PROJECAO)[ALVO].mean() * 100
+    projecao["letalidade"] = letalidade.reindex(projecao.index)
+
+    fig = go.Figure(go.Scatter(
+        x=projecao["x"], y=projecao["y"], mode="markers",
+        text=projecao.index,
+        marker=dict(size=9, color=projecao["letalidade"], colorscale="Reds", colorbar=dict(title="% fatais"),
+                    line=dict(color="#52514e", width=0.5)),
+        hovertemplate="%{text}<br>%{marker.color:.1f}% fatais<extra></extra>",
+    ))
+    fig.update_xaxes(title="componente 1", showticklabels=False)
+    fig.update_yaxes(title="componente 2", showticklabels=False)
+    return {"grafico_projecao": grafico(fig, altura=480), "variancia_projecao": variancia}
+
+
+# as colunas do acidente na lista de previsões; depois delas, uma coluna por modelo
+COLUNAS_ACIDENTE = ["data_inversa", "uf", "br", "municipio", "tipo_acidente", "fatal"]
+
+
+def _contexto_previsao(previsao, selecao) -> dict:
+    tabela = previsao.metricas.rename(columns=NOMES_METRICAS).map(lambda v: num(v, 3))
+
+    dados = previsao.previstos
+    tem_fatais, so_fatais = dados[ALVO].any(), dados[ALVO].all()
+    if not tem_fatais or so_fatais:
+        leitura = (f"Os dados adicionados {'não têm acidentes fatais' if not tem_fatais else 'só têm acidentes fatais'}: "
+                   "o recall, a precisão e a PR-AUC não dizem nada aqui. Só a acurácia vale.")
+    else:
+        recall = previsao.metricas["recall"]
+        melhor = recall.idxmax()
+        leitura = (f"Nos {num(len(dados), 0)} acidentes adicionados, o modelo que encontra mais acidentes fatais é {melhor}: "
+                   f"{pct(recall[melhor] * 100)} dos {num(dados[ALVO].sum(), 0)} fatais. "
+                   "Compare com a tabela de cima: se o recall cai muito, os dados novos fogem do padrão do treino.")
+
+    # cada modelo vira uma coluna de texto: o que ele previu, com ✓ (acertou) ou ✗ (errou)
+    lista = filtros.aplicar(dados, selecao)
+    nomes = list(previsao.metricas.index)
+    lista = lista.assign(**{
+        nome: [("✓ " if previsto == real else "✗ ") + ("fatal" if previsto else "não fatal")
+               for previsto, real in zip(lista[nome], lista[ALVO])]
+        for nome in nomes
+    })
+
+    return {
+        "previsao": previsao,
+        "tabela_previsao": tabela,
+        "leitura_previsao": leitura,
+        "lista_previsao": paginar(lista, COLUNAS_ACIDENTE + nomes),
+    }
+
+
+@bp.post("/modelos/prever")
+def prever():
+    if estado.prever() is None:
+        flash("Não há dados adicionados para prever. Envie um arquivo na tela Dados adicionados.", "aviso")
+    return redirect(url_for("modelos.tela") + "#previsao")
+
+
+def _ler_hiperparametros(nome: str, formulario) -> dict:
+    """Converte os campos do formulário nos tipos do catálogo; criar_modelo confere os limites."""
+    params = {}
+    for hiperparam in CATALOGO[nome].hiperparametros:
+        texto = formulario.get(hiperparam.nome, "")
+        if hiperparam.tipo == "int":
+            params[hiperparam.nome] = int(texto)
+        elif hiperparam.tipo == "float":
+            params[hiperparam.nome] = float(texto.replace(",", "."))
+        else:
+            # o select manda texto: volta para a opção original (None, 512...)
+            opcoes = {str(opcao): opcao for opcao in hiperparam.opcoes}
+            if texto not in opcoes:
+                raise ValueError(f"{hiperparam.nome}={texto!r} fora de {hiperparam.opcoes}")
+            params[hiperparam.nome] = opcoes[texto]
+
+    criar_modelo(nome, **params)  # valida antes do treino pesado
+    return params
+
+
+@bp.post("/modelos/retreinar")
+def retreinar():
+    nome = request.form.get("modelo", "")
+    if nome not in CATALOGO:
+        flash(f"Modelo desconhecido: {nome}", "erro")
+        return redirect(url_for("modelos.tela") + "#retreino")
+    if estado.base() is None:
+        flash("Não há base para treinar. Envie um arquivo na tela Dados adicionados.", "aviso")
+        return redirect(url_for("modelos.tela") + "#retreino")
+
+    try:
+        params = _ler_hiperparametros(nome, request.form)
+        fatias = int(request.form.get("fatias", 5))
+    except ValueError as erro:
+        flash(f"Hiperparâmetro inválido: {erro}", "erro")
+        return redirect(url_for("modelos.tela") + "#retreino")
+
+    classificador = estado.retreinar(nome, params, fatias)
+    recall = classificador.metricas_fatias["recall"].mean()
+    flash(f"{nome} re-treinado com {num(estado.modelos().acidentes, 0)} acidentes: recall de {pct(recall * 100)}.", "sucesso")
+    return redirect(url_for("modelos.tela"))
+
+
+def _contexto_retreino(modelos) -> dict:
+    """Os formulários de re-treino: um por modelo, já preenchidos com os valores em uso."""
+    formularios = []
+    for nome in CLASSIFICADORES:
+        treinado = modelos.classificadores.get(nome) if modelos else None
+        atuais = (treinado.parametros if treinado else None) or {}
+        formularios.append({
+            "nome": nome,
+            "hiperparametros": [(hp, atuais.get(hp.nome, hp.padrao)) for hp in CATALOGO[nome].hiperparametros],
+        })
+    return {"formularios_retreino": formularios}
 
 
 @bp.get("/modelos")
@@ -46,10 +213,17 @@ def _contexto_classificador(modelos) -> dict:
 def tela(df, selecao):
     modelos = estado.modelos()
     if modelos is None:
-        return render_template("modelos.html", modelos=None)
+        return render_template("modelos.html", modelos=None, **_contexto_retreino(None))
 
-    contexto = {"modelos": modelos, "base_atual": len(estado.base().limpo)}
-    contexto.update(_contexto_regressao(modelos.regressao))
-    contexto.update(_contexto_classificador(modelos))
+    contexto = {"modelos": modelos}
+    contexto.update(_contexto_retreino(modelos))
+    contexto.update(_contexto_classificadores(modelos))
+    contexto.update(_contexto_embeddings(modelos))
+    rede = modelos.classificadores.get("Rede com embeddings (PyTorch)")
+    if rede is not None:
+        contexto.update(_contexto_projecao(rede, estado.base().limpo))
+    contexto["tem_adicionados"] = not estado.dados_adicionados().empty
+    if estado.previsao() is not None:
+        contexto.update(_contexto_previsao(estado.previsao(), selecao))
 
     return render_template("modelos.html", **contexto)

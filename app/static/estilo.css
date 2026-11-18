@@ -60,16 +60,6 @@ body {
 .cabecalho h1 { margin: 0 0 4px; font-size: 26px; }
 .cabecalho p { margin: 0 0 20px; color: var(--texto-secundario); }
 
-.hipotese {
-  background: var(--azul-fundo);
-  border-radius: 10px;
-  padding: 16px 20px;
-  margin-bottom: 20px;
-}
-.hipotese .numeros { display: flex; gap: 32px; flex-wrap: wrap; margin-top: 10px; }
-.hipotese .numero b { display: block; font-size: 24px; }
-.hipotese .numero span { font-size: 13px; color: var(--texto-secundario); }
-
 .grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 
 .cartao {
@@ -86,8 +76,6 @@ body {
 .limite { margin: 8px 0 0; font-size: 14px; color: var(--limite); background: var(--limite-fundo); padding: 6px 10px; border-radius: 6px; }
 .nota { font-size: 13px; color: var(--texto-secundario); }
 .status { font-size: 11px; text-transform: uppercase; padding: 2px 8px; border-radius: 10px; background: var(--azul-fundo); color: var(--azul); margin-left: 6px; vertical-align: middle; }
-.status.andamento { background: var(--limite-fundo); color: var(--limite); }
-.dois { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .ficha { margin: 0 0 8px; font-size: 14px; }
 .ficha dt { font-weight: 600; float: left; clear: left; width: 90px; }
 .ficha dd { margin: 0 0 4px 96px; }
@@ -99,6 +87,10 @@ body {
 .tabela thead th { color: var(--texto-secundario); font-weight: 600; }
 .paginacao { display: flex; gap: 16px; align-items: center; margin-top: 10px; font-size: 14px; }
 .paginacao a { color: var(--azul); }
+.paginacao span { color: var(--texto-secundario); }
+.paginacao.topo { margin: 0 0 10px; }
+.legenda { display: flex; gap: 16px; margin-bottom: 8px; font-size: 13px; color: var(--texto-secundario); }
+.legenda i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
 
 /* avisos e formulários */
 .aviso { padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; }
@@ -107,7 +99,6 @@ body {
 .aviso.aviso { background: var(--limite-fundo); color: var(--limite); }
 
 .upload { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
-.botoes { display: flex; gap: 10px; flex-wrap: wrap; }
 button {
   background: var(--azul);
   color: white;
@@ -119,9 +110,6 @@ button {
 }
 button.secundario { background: var(--superficie); color: var(--azul); border: 1px solid var(--azul); }
 
-.niveis { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
-.niveis li { padding: 10px 12px; border: 1px solid var(--borda); border-radius: 8px; }
-.niveis a { color: var(--azul); }
 
 #mapa { height: 460px; border-radius: 8px; }
 
@@ -129,5 +117,24 @@ button.secundario { background: var(--superficie); color: var(--azul); border: 1
   .app { flex-direction: column; }
   .lateral { width: 100%; height: auto; position: static; }
   .conteudo { padding: 16px; }
-  .grade, .dois { grid-template-columns: 1fr; }
+  .grade { grid-template-columns: 1fr; }
 }
+
+/* barras horizontais empilhadas (fatal + não fatal), sem biblioteca */
+.barras { display: grid; gap: 4px; margin: 4px 0; }
+.barra { display: grid; grid-template-columns: 32px 1fr 170px; align-items: center; gap: 10px; font-size: 13px; }
+.barra .trilho { display: flex; gap: 2px; height: 16px; }
+.barra .trilho i { display: block; height: 100%; min-width: 2px; }
+.barra .trilho i:last-child { border-radius: 0 4px 4px 0; }
+.barra .trilho .fatal { background: var(--laranja); }
+.barra .trilho .nao-fatal { background: var(--azul); }
+.barra .valor { color: var(--texto); font-variant-numeric: tabular-nums; }
+.barra .valor small { color: var(--texto-secundario); font-size: 12px; }
+.barra:hover { background: var(--fundo); }
+
+/* re-treino: um formulário por modelo */
+.retreino { border-top: 1px solid var(--fundo); padding: 8px 0; }
+.retreino summary { cursor: pointer; font-weight: 600; }
+.retreino form { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-top: 10px; }
+.retreino label { display: grid; gap: 4px; font-size: 13px; }
+.retreino input { width: 110px; }

@@ -6,12 +6,10 @@ from app import estado, filtros
 
 # a ordem da barra lateral
 TELAS = [
-    ("hipotese.tela", "A hipótese"),
-    ("quando.tela", "Quando?"),
-    ("onde.tela", "Onde?"),
-    ("condicoes.tela", "Condições"),
+    ("acidentes.tela", "Acidentes"),
     ("modelos.tela", "Modelos"),
     ("dados.tela", "Dados"),
+    ("adicionados.tela", "Dados adicionados"),
 ]
 
 
@@ -23,7 +21,7 @@ def com_base_filtrada(view):
         base = estado.base()
         if base is None:
             flash("Carregue uma base primeiro.", "aviso")
-            return redirect(url_for("dados.tela"))
+            return redirect(url_for("adicionados.tela"))
 
         selecao = filtros.ler(request.args)
         df = filtros.aplicar(base.limpo, selecao)

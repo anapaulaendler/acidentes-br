@@ -23,7 +23,7 @@
     {% if opcoes_filtro %}
     <form class="filtros" method="get" action="{{ url_for(request.endpoint) }}">
       <div class="label">Filtros</div>
-      {% for campo, rotulo in [('uf', 'UF'), ('ano', 'Ano'), ('pista', 'Tipo de pista')] %}
+      {% for campo, rotulo in [('gravidade', 'Acidentes'), ('uf', 'UF'), ('ano', 'Ano')] %}
       <label>{{ rotulo }}
         <select name="{{ campo }}" onchange="this.form.submit()">
           <option value="">Todos</option>

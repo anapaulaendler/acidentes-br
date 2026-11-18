@@ -1,61 +1,113 @@
 {% extends "base.html" %}
 {% from "_cartao.html" import cartao %}
+{% from "_lista.html" import lista as lista_paginada with context %}
 {% block conteudo %}
 <header class="cabecalho">
   <h1>Modelos</h1>
-  <p>Cada modelo responde a uma pergunta sobre a hipótese. Os modelos já estão treinados: a app usa os pesos salvos, e os filtros da barra lateral não mudam os modelos.</p>
 </header>
 
 {% if modelos is none %}
 <section class="cartao largo">
   <h3>Os modelos ainda não foram treinados</h3>
-  <p>Rode <code>python3 -m scripts.treinar_modelos</code> na raiz do projeto e reinicie a app.</p>
+  <p>Treine um modelo no cartão abaixo, ou rode <code>python3 -m scripts.treinar_modelos</code> na raiz do projeto e reinicie a app.</p>
 </section>
 {% else %}
-<p class="nota">Treinados em {{ modelos.treinado_em.strftime('%d/%m/%Y %H:%M') }} com {{ modelos.base }}: {{ modelos.acidentes|num(0) }} acidentes ({{ modelos.anos }}).
-  {% if base_atual != modelos.acidentes %}A base atual tem {{ base_atual|num(0) }} acidentes: os dados adicionados entram no próximo treino (<code>python3 -m scripts.treinar_modelos</code>).{% endif %}</p>
-
 <div class="grade">
-  {% call cartao("Regressão linear múltipla", limite="Associação, não causa. O valor do efeito depende do método (veja a sensibilidade na tela Condições).") %}
-    <span class="status">treinado</span>
+  {% call cartao("Classificadores: árvore de decisão, KNN, MLP e rede com embeddings",
+       leitura=leitura_classificadores,
+       largo=True) %}
+    <span class="status">treinados</span>
     <dl class="ficha">
-      <dt>Pergunta</dt><dd>Com os outros fatores iguais, um trecho com mais pista simples tem uma letalidade mais alta?</dd>
-      {% if regressao %}
-      <dt>Dados</dt><dd>{{ regressao.trechos|num(0) }} trechos (UF + BR + 5 km) com pelo menos 30 acidentes. {{ variaveis_regressao }} variáveis: porcentagens do perfil, volume e região (one-hot).</dd>
-      <dt>Resultado</dt><dd>
-        {% if efeito_simples %}Pista simples de 0% a 100%: <b>{{ efeito_simples }} pp</b> de letalidade{% if intervalo_simples %} (intervalo de {{ intervalo_simples }} na sensibilidade){% endif %}.
-        {% else %}Todos os trechos têm o mesmo tipo de pista: a regressão não mede o efeito da pista.{% endif %}
-        Na validação cruzada: R² {{ r2_regressao }}, MAE {{ mae_regressao }} pp.</dd>
-      {% endif %}
+      <dt>Pergunta</dt><dd>Um modelo consegue prever se um acidente vai ser fatal, com as condições do acidente (sem as colunas de vítimas)?</dd>
+      <dt>Dados</dt><dd>{{ modelos.acidentes|num(0) }} acidentes. Variáveis: UF, BR, dia, causa, tipo de acidente, fase do dia, sentido, clima, pista, traçado, uso do solo, km, pessoas e veículos.</dd>
     </dl>
-    {% if regressao %}
-      {{ regressao.metricas|tabela(3) }}
-      <p class="nota"><a href="{{ url_for('condicoes.tela', **filtros_atuais.como_dict()) }}">Ver os coeficientes e a sensibilidade em Condições →</a></p>
-    {% else %}
-      <p class="limite">A base do treino não tinha trechos suficientes com pelo menos 30 acidentes.</p>
-    {% endif %}
+    <div class="rolagem">{{ tabela_classificadores|tabela }}</div>
+    <p class="nota">Média ± desvio entre as fatias.</p>
   {% endcall %}
 
-  {% call cartao("Classificador: MLP (scikit-learn)",
-       leitura=leitura_classificador,
-       limite="Validação cruzada em " ~ fatias ~ " fatias aleatórias, estratificadas pela classe fatal: cada fatia é o teste uma vez, e as outras treinam. O modelo salvo treina com a base toda. Limiar de decisão: 0,5.",
+  {% if embeddings %}
+  {% call cartao("Rede com embeddings (PyTorch)",
+       leitura=embeddings.leitura,
+       limite=("As duas redes são a mesma: mesmas camadas, mesmo peso da classe fatal, mesmo dropout, mesmas " ~ fatias ~ " fatias. Só a codificação das categorias muda." if embeddings.mesma_rede
+               else "Comparação com o MLP do scikit-learn: as duas redes não são idênticas (a rede em PyTorch pesa a classe fatal e usa dropout). Treine a \"Rede com one-hot (PyTorch)\" para isolar o efeito dos embeddings."),
        largo=True) %}
     <span class="status">treinado</span>
     <dl class="ficha">
-      <dt>Pergunta</dt><dd>Um modelo consegue prever se um acidente vai ser fatal, com as condições do acidente (sem as colunas de vítimas)?</dd>
-      <dt>Dados</dt><dd>{{ modelos.linhas_classificador|num(0) }} acidentes. Variáveis: UF, BR, dia, causa, tipo de acidente, fase do dia, sentido, clima, pista, traçado, uso do solo, km, pessoas e veículos.</dd>
+      <dt>Hipótese técnica</dt><dd>Uma rede com embeddings tem um recall da classe fatal maior que a mesma rede com one-hot, porque colunas como a causa e a BR têm muitas categorias.</dd>
+      <dt>Teste</dt><dd>{{ "A mesma rede" if embeddings.mesma_rede else "A rede contra o MLP do scikit-learn" }}, nas mesmas fatias da validação cruzada.
+        Recall: {{ embeddings.recall_rede|pct }} (embeddings) contra {{ embeddings.recall_onehot|pct }} (one-hot).
+        PR-AUC: {{ embeddings.pr_auc_rede|num(3) }} contra {{ embeddings.pr_auc_onehot|num(3) }}.
+        Os embeddings ganham no recall em {{ embeddings.fatias_a_favor }} de {{ embeddings.fatias }} fatias e no PR-AUC em {{ embeddings.fatias_a_favor_pr_auc }} de {{ embeddings.fatias }}.</dd>
     </dl>
-    <div class="rolagem">{{ metricas_classificador|tabela(3) }}</div>
-    <p class="nota"><a href="{{ url_for('dados.tela', **filtros_atuais.como_dict()) }}">Na tela Dados, um arquivo adicionado é comparado com o desempenho deste modelo →</a></p>
+    {% if grafico_projecao %}
+    <p class="nota">Os embeddings das causas de acidente, projetados em 2D (PCA). Cada ponto é uma causa: causas próximas são causas que a rede aprendeu a tratar de modo parecido.
+      A cor é a % de acidentes fatais da causa na base. Passe o mouse para ver o nome. O PCA mantém {{ variancia_projecao|pct }} da variação dos vetores.</p>
+    {{ grafico_projecao }}
+    {% endif %}
   {% endcall %}
+  {% endif %}
 
-  {% call cartao("Rede com embeddings (PyTorch)", largo=True) %}
-    <span class="status andamento">em andamento</span>
-    <dl class="ficha">
-      <dt>Hipótese técnica</dt><dd>Uma rede com embeddings tem um recall da classe fatal maior que o mesmo MLP com one-hot, porque colunas como a causa e o município têm muitas categorias.</dd>
-      <dt>Teste</dt><dd>O mesmo MLP com as duas codificações, no mesmo conjunto de teste.</dd>
-    </dl>
+  <section class="cartao largo" id="previsao">
+    <h3>Prever os dados adicionados</h3>
+    {% if tem_adicionados %}
+    <p><b>A opção leve.</b> Os modelos ficam como estão e dizem onde os dados novos se encaixam. Para os modelos aprenderem com os dados novos, use o re-treino abaixo.</p>
+    <p>Os modelos treinados preveem, para cada acidente dos arquivos enviados, se ele foi fatal. A app compara a previsão com o que aconteceu.</p>
+    <form method="post" action="{{ url_for('modelos.prever') }}">
+      <button type="submit">{{ 'Prever de novo' if previsao else 'Prever' }}</button>
+    </form>
+    {% if previsao %}<p class="nota">Última previsão: {{ previsao.feita_em.strftime('%d/%m/%Y %H:%M') }}.</p>{% endif %}
+    {% else %}
+    <p>Ainda não há dados adicionados. <a href="{{ url_for('adicionados.tela') }}">Envie um arquivo na tela Dados adicionados →</a></p>
+    {% endif %}
+  </section>
+
+  {% if previsao %}
+  {% call cartao("Classificadores nos dados adicionados",
+       largo=True) %}
+    <div class="rolagem">{{ tabela_previsao|tabela }}</div>
   {% endcall %}
+  {% endif %}
 </div>
+
+{% if previsao %}
+<p class="nota" style="margin-top:16px">Em cada modelo: o que ele previu, com ✓ quando acertou e ✗ quando errou. A coluna <b>fatal</b> diz o que aconteceu.</p>
+{{ lista_paginada("Previsões por acidente", lista_previsao, "modelos.tela") }}
 {% endif %}
+{% endif %}
+
+<section class="cartao largo" id="retreino" style="margin-top:16px">
+  <h3>Re-treinar um modelo</h3>
+  <p><b>A opção pesada.</b> O modelo treina de novo com a base atual (a inicial mais os arquivos adicionados) e com os hiperparâmetros escolhidos aqui.
+    A app roda a validação cruzada e depois treina com a base toda: na base completa, pode levar horas (as redes e o KNN são os mais lentos), e a página fica carregando até terminar. Para testar rápido, use a árvore com 3 fatias.
+    Os outros modelos continuam como estão.</p>
+  {% for formulario in formularios_retreino %}
+  <details class="retreino">
+    <summary>{{ formulario.nome }}</summary>
+    <form method="post" action="{{ url_for('modelos.retreinar') }}">
+      <input type="hidden" name="modelo" value="{{ formulario.nome }}">
+      {% for hp, valor in formulario.hiperparametros %}
+      <label>{{ hp.nome }}
+        {% if hp.tipo == "escolha" %}
+        <select name="{{ hp.nome }}">
+          {% for opcao in hp.opcoes %}
+          <option value="{{ opcao }}" {{ 'selected' if opcao == valor }}>{{ 'nenhum' if opcao is none else opcao }}</option>
+          {% endfor %}
+        </select>
+        {% else %}
+        <input type="number" name="{{ hp.nome }}" value="{{ valor }}" min="{{ hp.minimo }}" max="{{ hp.maximo }}"
+               step="{{ 1 if hp.tipo == 'int' else 'any' }}" required>
+        {% endif %}
+      </label>
+      {% endfor %}
+      <label>fatias da validação cruzada
+        <select name="fatias">
+          <option value="3">3 (mais rápido)</option>
+          <option value="5" selected>5</option>
+        </select>
+      </label>
+      <button type="submit">Re-treinar</button>
+    </form>
+  </details>
+  {% endfor %}
+</section>
 {% endblock %}

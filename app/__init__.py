@@ -20,9 +20,9 @@ def criar_app() -> Flask:
 
     estado.iniciar()
 
-    from app.telas import TELAS, condicoes, dados, hipotese, modelos, onde, quando
+    from app.telas import TELAS, acidentes, adicionados, dados, modelos
 
-    for modulo in (hipotese, quando, onde, condicoes, modelos, dados):
+    for modulo in (acidentes, modelos, dados, adicionados):
         app.register_blueprint(modulo.bp)
 
     app.add_template_filter(formato.num, "num")
@@ -39,6 +39,7 @@ def criar_app() -> Flask:
             "opcoes_filtro": filtros.opcoes(base.limpo) if base else None,
         }
 
+    # a app serve o próprio plotly.js: o gráfico funciona sem internet
     @app.get("/plotly.js")
     def plotly_js():
         return Response(_plotly_js(), mimetype="application/javascript", headers={"Cache-Control": "max-age=86400"})
