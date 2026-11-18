@@ -1,6 +1,6 @@
 # Acidentes nas rodovias federais — Equipe 9
 
-Aplicação web (Flask) que mostra os acidentes nas rodovias federais e testa uma pergunta:
+Análise de Data Science dos acidentes nas rodovias federais, feita num notebook, que testa uma pergunta:
 **um modelo consegue prever se um acidente vai ser fatal, só com as condições do acidente?**
 
 Fonte dos dados: [dados abertos da PRF](https://www.gov.br/prf/pt-br/acesso-a-informacao/dados-abertos/dados-abertos-da-prf), agrupados **por ocorrência** (`datatran<ano>.csv`).
@@ -13,42 +13,18 @@ Fonte dos dados: [dados abertos da PRF](https://www.gov.br/prf/pt-br/acesso-a-in
    pip install -r requirements.txt
    ```
 
-2. Para usar a base completa, coloque os arquivos `datatran2017.csv` a `datatran2026.csv` em `data/raw/`.
-   Sem esses arquivos, a app abre sem base, na tela **Dados adicionados**: o primeiro arquivo enviado vira a base.
+2. Coloque os arquivos `datatran2017.csv` a `datatran2026.csv` em `data/raw/`.
 
-3. Inicie a app e abra http://127.0.0.1:5000 no navegador:
+3. Abra o notebook `notebooks/analise_prf.ipynb` e rode as células em ordem.
+
+4. Para treinar os modelos de novo, rode da raiz do projeto:
 
    ```bash
-   python3 rodar.py
+   python3 -m scripts.treinar_modelos                                # todos os modelos
+   python3 -m scripts.treinar_modelos "Rede com one-hot (PyTorch)"   # só esses
    ```
 
-4. Para treinar os modelos de novo (por exemplo, depois de adicionar dados), há duas opções:
-   - **Na app**, tela **Modelos**, cartão **Re-treinar um modelo**: escolha o modelo, ajuste os hiperparâmetros
-     (profundidade da árvore, vizinhos do KNN, camadas e neurônios das redes…) e clique em **Re-treinar**.
-     O modelo treina com a base atual e é salvo; os outros continuam como estão.
-   - **Pelo terminal**, todos os modelos com os hiperparâmetros padrão (depois, reinicie a app):
-
-     ```bash
-     python3 -m scripts.treinar_modelos
-     ```
-
-O mapa precisa de internet (fundo do OpenStreetMap). O resto da app funciona sem internet.
-
-## Telas
-
-| Tela | O que mostra |
-|---|---|
-| Acidentes | O mapa dos acidentes, paginado, os acidentes por UF (fatais e não fatais), os fatais por fase do dia (pizza) e a letalidade por tipo de acidente |
-| Modelos | O desempenho dos classificadores na validação cruzada, a rede com embeddings, a previsão dos dados adicionados e o re-treino com hiperparâmetros escolhidos |
-| Dados | A lista paginada de todos os acidentes da base |
-| Dados adicionados | O envio de arquivos e a lista paginada só com os acidentes enviados |
-
-Cada resultado fica num **cartão de insight**: a afirmação, a evidência, a leitura e o limite.
-Um arquivo enviado entra na base e muda as telas na hora. Os modelos só mudam com um novo treino.
-Com dados novos, a tela Modelos oferece duas saídas: **prever** (leve: os modelos ficam como estão e dizem onde os dados novos se encaixam)
-ou **re-treinar** (pesado: validação cruzada e treino com a base toda, que na base completa pode levar horas).
-
-Os filtros da barra lateral (acidentes fatais ou não, UF e ano) valem para o mapa, o gráfico por UF e as listas.
+   Os modelos ficam salvos em `modelos_treinados/modelos.joblib`. O notebook só carrega esse arquivo, porque o treino com a base completa pode levar horas.
 
 ## Como funciona
 
@@ -75,11 +51,11 @@ O modelo usa:
 ### Codificação (`src/features/encoding.py`)
 
 - **One-hot** (árvore, KNN, MLP e a rede com one-hot): cada categoria vira uma coluna de 0 ou 1. As numéricas recebem a mediana quando faltam e são padronizadas.
-- **Embeddings** (a rede com embeddings): cada categoria vira um número inteiro, e a rede aprende um vetor para ela durante o treino. Categorias parecidas tendem a ficar com vetores próximos. A tela Modelos mostra isso com os vetores das causas projetados em 2D por PCA.
+- **Embeddings** (a rede com embeddings): cada categoria vira um número inteiro, e a rede aprende um vetor para ela durante o treino. Categorias parecidas tendem a ficar com vetores próximos. O `src/modelos/projecao.py` projeta os vetores das causas em 2D por PCA.
 
 ### Os modelos e os hiperparâmetros
 
-Todos os modelos estão em `src/modelos/`. Cada um se registra no catálogo (`catalogo.py`) com seus hiperparâmetros e limites. A tela de re-treino monta os campos a partir desse catálogo.
+Todos os modelos estão em `src/modelos/`. Cada um se registra no catálogo (`catalogo.py`) com seus hiperparâmetros e limites.
 
 | Modelo | Hiperparâmetros | O que cada um muda |
 |---|---|---|
@@ -92,7 +68,7 @@ O `class_weight="balanced"` dá mais peso à classe fatal no treino. Os acidente
 
 ### Como os modelos são avaliados (`src/avaliacao.py`)
 
-- **Validação cruzada estratificada:** 5 fatias por padrão, e 3 ou 5 no re-treino pela tela. Cada fatia mantém a mesma proporção de fatais. O modelo treina com as outras fatias e é medido na fatia que não viu. A tela mostra a média ± o desvio entre as fatias.
+- **Validação cruzada estratificada:** 5 fatias. Cada fatia mantém a mesma proporção de fatais. O modelo treina com as outras fatias e é medido na fatia que não viu. O resultado é a média ± o desvio entre as fatias.
 - **Recall é a métrica principal:** é a parte dos acidentes fatais de verdade que o modelo encontra. Deixar passar um acidente fatal custa mais que um alarme falso.
 - **As outras métricas:**
   - precisão: dos acidentes que o modelo chamou de fatais, quantos eram;
@@ -100,23 +76,20 @@ O `class_weight="balanced"` dá mais peso à classe fatal no treino. Os acidente
   - PR-AUC: a qualidade da probabilidade, sem depender do limiar;
   - acurácia: aparece, mas engana, porque um modelo que diz "não fatal" para tudo já acerta quase sempre.
 - **Limiar:** 0,5 na probabilidade de ser fatal.
-- **Amostra de produção:** `data/amostras/producao_100.csv` nunca entra no treino. Ela simula dados novos, que os modelos não viram, para testar o botão **Prever**.
+- **Amostra de produção:** `data/amostras/producao_100.csv` nunca entra no treino. Ela simula dados novos, que os modelos não viram.
 
 ## Estrutura
 
 ```
-app/                  aplicação Flask
-├── telas/            uma rota por tela
-├── templates/        HTML (Jinja2); _cartao.html é o cartão de insight, _lista.html a lista paginada
-├── static/           o CSS
-├── estado.py         a base carregada, os dados adicionados, os modelos e a previsão
-├── filtros.py        os filtros da barra lateral
-└── formato.py        números e tabelas no formato brasileiro
+notebooks/
+└── analise_prf.ipynb    a análise: dados, limpeza, regressão, k-means e os modelos treinados
 src/                  dados e modelos
+├── base.py           a base completa e a amostra de produção
 ├── carregar.py       leitura de CSV, JSON e XML
 ├── validar.py        as colunas obrigatórias
 ├── limpeza.py        limpeza e grupos de causa
 ├── colunas.py        os grupos de colunas e o alvo (fatal)
+├── trechos.py        os trechos de rodovia da regressão
 ├── avaliacao.py      a validação cruzada e as métricas
 ├── features/         a codificação das colunas
 └── modelos/          árvore de decisão, KNN, MLP, rede com embeddings (PyTorch) e o catálogo

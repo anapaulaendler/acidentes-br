@@ -1,13 +1,13 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from app.estado import ANOS_BASE_COMPLETA, PASTA_RAW, PRODUCAO
+from base import ANOS, PASTA_RAW, PRODUCAO
 
 TAMANHO = 100
 
 
 def main() -> None:
-    partes = [pd.read_csv(PASTA_RAW / f"datatran{ano}.csv", sep=";", encoding="latin1", dtype=str) for ano in ANOS_BASE_COMPLETA]
+    partes = [pd.read_csv(PASTA_RAW / f"datatran{ano}.csv", sep=";", encoding="latin1", dtype=str) for ano in ANOS]
     df = pd.concat(partes, ignore_index=True).dropna(subset=["classificacao_acidente"])
 
     fatal = df["classificacao_acidente"] == "Com Vítimas Fatais"

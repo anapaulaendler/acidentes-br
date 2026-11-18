@@ -1,4 +1,4 @@
-"""Os modelos já treinados: o script de treino salva, a app só carrega e usa."""
+"""Os modelos já treinados: o script de treino salva, o notebook só carrega e usa."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -18,7 +18,7 @@ CLASSIFICADORES = ["Árvore de decisão", "KNN", "MLP (scikit-learn)", "Rede com
 class Classificador:
     modelo: BaseEstimator
     metricas_fatias: pd.DataFrame  # uma linha por fatia
-    # os hiperparâmetros escolhidos na tela; None = os padrões do catálogo (treino pelo script)
+    # os hiperparâmetros do treino; None = os padrões do catálogo
     parametros: dict | None = None
 
 

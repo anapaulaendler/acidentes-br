@@ -1,4 +1,4 @@
-"""Treina os modelos com a base da app (base inicial + arquivos adicionados) e salva em modelos_treinados/.
+"""Treina os modelos com a base completa da PRF (data/raw/) e salva em modelos_treinados/.
 
 Rode da raiz do projeto:
     python3 -m scripts.treinar_modelos                                  # todos os modelos
@@ -11,7 +11,7 @@ from time import perf_counter
 
 import pandas as pd
 
-from app import estado
+import base
 from avaliacao import FATIAS, montar_features, validacao_cruzada
 from modelos import treinados
 from modelos.treino import treinar
@@ -20,11 +20,8 @@ from modelos.treino import treinar
 def main(nomes: list[str]) -> None:
     inicio = perf_counter()
     # sem a amostra de produção (data/amostras/producao_100.csv): ela fica fora do treino e da validação
-    base = estado.iniciar(com_modelos=False, para_treino=True)
-    if base is None:
-        raise SystemExit("Sem base para treinar: coloque os datatran*.csv em data/raw/ ou envie um arquivo pela tela Dados.")
-    df = base.limpo
-    print(f"{base.nome} + {base.arquivos_adicionados} arquivo(s) adicionado(s): {len(df):,} acidentes")
+    df = base.base_de_treino()
+    print(f"{base.NOME}: {len(df):,} acidentes")
 
     classificadores = {}
     if nomes != treinados.CLASSIFICADORES:
@@ -47,7 +44,7 @@ def main(nomes: list[str]) -> None:
         # salva a cada modelo: se o treino cair no meio, os modelos prontos ficam salvos
         treinados.salvar(treinados.ModelosTreinados(
             treinado_em=datetime.now(),
-            base=base.nome,
+            base=base.NOME,
             acidentes=len(df),
             anos=f"{df['ano'].min()}–{df['ano'].max()}",
             classificadores={n: classificadores[n] for n in treinados.CLASSIFICADORES if n in classificadores},
