@@ -25,7 +25,8 @@ def marcar_trecho(df: pd.DataFrame) -> pd.DataFrame:
 
 def montar_trechos(df: pd.DataFrame) -> pd.DataFrame:
     df = marcar_trecho(df)
-    anos = df["data_inversa"].dt.year.nunique()
+    # em meses, porque o último ano da base pode estar incompleto (2026 vai até agosto)
+    anos = df["data_inversa"].dt.to_period("M").nunique() / 12
 
     # o clima tem NaN, e um acidente sem clima não conta nem como chuva nem como tempo seco
     chuva = df["condicao_metereologica"].isin(["Chuva", "Garoa/Chuvisco"])
