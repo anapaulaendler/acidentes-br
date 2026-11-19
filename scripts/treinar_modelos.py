@@ -1,7 +1,8 @@
 """Treina os modelos com a base completa da PRF (data/raw/) e salva em modelos_treinados/.
 
 A base é dividida em 80% de treino e 20% de teste, estratificado. A validação cruzada roda só no treino;
-o modelo final treina com o treino todo e é medido uma vez no teste.
+o modelo final treina com o treino todo e é medido uma vez no teste. Os hiperparâmetros vêm da busca
+(scripts/buscar_hiperparametros.py), quando ela existe; senão, ficam os padrões do catálogo.
 
 Rode da raiz do projeto:
     python3 -m scripts.treinar_modelos                                  # todos os modelos
@@ -17,7 +18,7 @@ import pandas as pd
 import base
 from avaliacao import FATIAS, amostra_de_treino, dividir_treino_teste, metricas, montar_features, validacao_cruzada
 from colunas import ALVO
-from modelos import treinados
+from modelos import busca, treinados
 from modelos.treino import treinar
 
 
@@ -41,12 +42,14 @@ def main(nomes: list[str]) -> None:
                 raise SystemExit("A base ou a divisão treino/teste mudou desde o último treino: treine todos os modelos.")
             classificadores = dict(anteriores.classificadores)
 
+    buscados = busca.carregar()
     for nome in nomes:
-        print(f"{nome}: validação cruzada no treino ({FATIAS} fatias)...")
-        por_fatia = validacao_cruzada(nome, treino)
+        ajustes = buscados[nome].escolhidos if nome in buscados else {}
+        print(f"{nome}: validação cruzada no treino ({FATIAS} fatias), hiperparâmetros {ajustes or 'padrão'}...")
+        por_fatia = validacao_cruzada(nome, treino, ajustes=ajustes)
 
         print(f"{nome}: treino final e teste...")
-        modelo = treinar(nome, montar_features(treino))
+        modelo = treinar(nome, montar_features(treino), ajustes)
         probabilidades = modelo.predict_proba(montar_features(teste))[:, 1]
         classificadores[nome] = treinados.Classificador(
             modelo=modelo,
@@ -54,6 +57,7 @@ def main(nomes: list[str]) -> None:
             metricas_treino=metricas(amostra[ALVO], modelo.predict_proba(montar_features(amostra))[:, 1]),
             metricas_teste=metricas(teste[ALVO], probabilidades),
             probabilidades_teste=probabilidades.astype("float32"),
+            parametros=ajustes,
         )
 
         # salva a cada modelo: se o treino cair no meio, os modelos prontos ficam salvos

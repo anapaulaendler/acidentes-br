@@ -7,7 +7,7 @@ from sklearn.pipeline import Pipeline
 from torch.utils.data import DataLoader, TensorDataset
 
 from features.encoding import CodificadorCategorias, preprocessador
-from colunas import CATEGORICAS, NUMERICAS
+from colunas import CATEGORICAS_MODELO, NUMERICAS
 
 import torch
 import torch.nn as nn
@@ -144,7 +144,7 @@ class ClassificadorEmbeddings(ClassifierMixin, BaseEstimator):
 
         # com one-hot a rede não tem camadas de embedding, e a tabela fica vazia
         self.embeddings_ = {}
-        for coluna, embedding in zip(CATEGORICAS, self.rede_.embeddings):
+        for coluna, embedding in zip(CATEGORICAS_MODELO, self.rede_.embeddings):
             vocabulario = self.codificador_.vocabularios_[coluna] # { categoria: indice }
             categorias = sorted(vocabulario, key=vocabulario.get)
 

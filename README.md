@@ -17,9 +17,10 @@ Fonte dos dados: [dados abertos da PRF](https://www.gov.br/prf/pt-br/acesso-a-in
 
 3. Abra o notebook `notebooks/analise_prf.ipynb` e rode as células em ordem.
 
-4. Para treinar os modelos de novo, rode da raiz do projeto:
+4. Para treinar os modelos de novo, rode da raiz do projeto (a busca de hiperparâmetros primeiro, porque o treino usa o resultado dela):
 
    ```bash
+   python3 -m scripts.buscar_hiperparametros                         # a busca, numa amostra do treino
    python3 -m scripts.treinar_modelos                                # todos os modelos
    python3 -m scripts.treinar_modelos "Rede com one-hot (PyTorch)"   # só esses
    ```
@@ -39,7 +40,10 @@ a própria classificação, mortos, feridos leves e graves, ilesos e ignorados. 
 O modelo usa:
 
 - **categóricas:** UF, BR, dia da semana, causa, tipo de acidente, fase do dia, sentido da via, condição meteorológica, tipo de pista, traçado e uso do solo;
-- **numéricas:** km, pessoas e veículos.
+- **numéricas:** km, pessoas e veículos;
+- **a persona do trecho:** o K-Means da análise agrupa os trechos (UF, BR e faixa de 5 km) em 4 personas, e cada acidente recebe a persona do trecho dele.
+  O passo `persona` do pipeline (`MarcarPersona`, em `src/modelos/personas.py`) roda o K-Means só com os acidentes de treino e sem o alvo, então o teste não muda as personas.
+  Um trecho com menos de 30 acidentes no treino fica "Sem persona".
 
 ### Limpeza (`src/limpeza.py`)
 
@@ -67,6 +71,9 @@ Todos os modelos estão em `src/modelos/`. Cada um se registra no catálogo (`ca
 | Gradient Boosting | `iteracoes`, `taxa_aprendizado`, `profundidade`, `class_weight` | *Boosting*: cada árvore nova corrige o erro das anteriores. A taxa de aprendizado é o peso de cada correção. Para sozinho quando a validação interna para de melhorar. |
 | MLP (scikit-learn) | `camadas`, `neuronios`, `alpha`, `taxa_aprendizado` | O tamanho da rede, a regularização (alpha alto = rede mais "contida") e o tamanho do passo do treino. Para sozinho quando a validação interna para de melhorar. |
 | Redes em PyTorch (embeddings e one-hot) | `epocas`, `tamanho_lote`, `taxa_aprendizado`, `camadas`, `neuronios`, `dropout`, `class_weight` | As duas redes são iguais e só mudam a codificação, para isolar o efeito dos embeddings. Dropout desliga neurônios ao acaso no treino, o que reduz o overfitting. |
+
+**Busca de hiperparâmetros** (`scripts/buscar_hiperparametros.py` e `src/modelos/busca.py`): o `RandomizedSearchCV` sorteia de 8 a 20 combinações por modelo, numa amostra de 150 mil acidentes do treino, com 3 fatias, e escolhe pela PR-AUC.
+A melhor combinação só substitui os padrões do catálogo se tiver PR-AUC maior. As redes em PyTorch ficam com os padrões, para a comparação embeddings × one-hot.
 
 O `class_weight="balanced"` dá mais peso à classe fatal no treino. Os acidentes fatais são minoria, e sem esse peso o modelo aprende a dizer "não fatal" para quase tudo.
 
@@ -101,6 +108,7 @@ src/                  dados e modelos
 ├── features/         a codificação das colunas
 └── modelos/          regressão logística, árvore de decisão, KNN, Random Forest, Gradient Boosting, MLP, rede com embeddings (PyTorch) e o catálogo
 scripts/
+├── buscar_hiperparametros.py   busca os hiperparâmetros e salva em modelos_treinados/busca.joblib
 ├── treinar_modelos.py   treina e salva os modelos em modelos_treinados/
 └── gerar_producao.py    gera a amostra de produção (data/amostras/producao_100.csv)
 ```

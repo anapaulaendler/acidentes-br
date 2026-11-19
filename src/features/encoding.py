@@ -6,7 +6,7 @@ from sklearn.preprocessing import FunctionTransformer, OneHotEncoder, StandardSc
 from sklearn.base import BaseEstimator, TransformerMixin
 import pandas as pd
 
-from colunas import CATEGORICAS, NUMERICAS
+from colunas import CATEGORICAS_MODELO, NUMERICAS
 
 
 DESCONHECIDO = "<desconhecido>"
@@ -28,7 +28,7 @@ def preprocessador() -> ColumnTransformer:
     ])
 
     return ColumnTransformer(
-        [("cat", categoricas, list(CATEGORICAS)), ("num", numericas, NUMERICAS)], remainder="drop"
+        [("cat", categoricas, list(CATEGORICAS_MODELO)), ("num", numericas, NUMERICAS)], remainder="drop"
     )
 
 
@@ -41,7 +41,7 @@ class CodificadorCategorias(BaseEstimator, TransformerMixin):
     def fit(self, df: pd.DataFrame, y=None) -> CodificadorCategorias:
         self.vocabularios_ = {}
 
-        for coluna in CATEGORICAS:
+        for coluna in CATEGORICAS_MODELO:
             valores = sorted(df[coluna].dropna().astype(str).unique())
 
             # basicamente valores que não apareceram no treino
@@ -54,7 +54,7 @@ class CodificadorCategorias(BaseEstimator, TransformerMixin):
 
         self.cardinalidades_ = []
 
-        for coluna in CATEGORICAS:
+        for coluna in CATEGORICAS_MODELO:
             self.cardinalidades_.append(len(self.vocabularios_[coluna]))
 
         return self
@@ -63,7 +63,7 @@ class CodificadorCategorias(BaseEstimator, TransformerMixin):
     def transform(self, df: pd.DataFrame) -> np.ndarray:
         colunas = []
 
-        for coluna in CATEGORICAS:  
+        for coluna in CATEGORICAS_MODELO:  
             indices = df[coluna].astype(str).map(self.vocabularios_[coluna]).fillna(0)
 
             colunas.append(indices.to_numpy(dtype=np.int64))

@@ -44,9 +44,12 @@ def montar_trechos(df: pd.DataFrame) -> pd.DataFrame:
         pedestre=df["grupo_causa"] == "Pedestre",
     )
 
+    # a letalidade usa o alvo; sem ele (acidentes novos, a persona do classificador), o trecho fica sem letalidade
+    letalidade = {"letalidade_trecho": (ALVO, "mean")} if ALVO in df else {}
+
     trechos = df.groupby(CHAVE_TRECHO).agg(
-        acidentes=(ALVO, "size"),
-        letalidade_trecho=(ALVO, "mean"),
+        acidentes=("uf", "size"),
+        **letalidade,
         pct_pista_simples=("simples", "mean"),
         pct_curva=("curva", "mean"),
         pct_noite=("noite", "mean"),
@@ -61,7 +64,7 @@ def montar_trechos(df: pd.DataFrame) -> pd.DataFrame:
     ).reset_index()
 
     # taxas em pontos percentuais (0 a 100), para o coeficiente da regressão ser lido em pp
-    percentuais = ["letalidade_trecho"] + [coluna for coluna in trechos.columns if coluna.startswith("pct_")]
+    percentuais = [coluna for coluna in trechos.columns if coluna == "letalidade_trecho" or coluna.startswith("pct_")]
     trechos[percentuais] = trechos[percentuais] * 100
 
     trechos["acidentes_por_ano"] = trechos["acidentes"] / anos

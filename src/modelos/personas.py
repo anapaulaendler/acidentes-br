@@ -1,8 +1,12 @@
 import numpy as np
 import pandas as pd
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
+
+from colunas import ALVO
+from trechos import CHAVE_TRECHO, TAMANHO_FAIXA_KM, montar_trechos
 
 MINIMO_ACIDENTES = 30
 K = 4
@@ -126,3 +130,30 @@ def comparar_pistas(agrupados: pd.DataFrame) -> pd.DataFrame:
     tabela["diferença (pp)"] = tabela["simples"] - tabela["dupla ou múltipla"]
 
     return tabela.sort_values("diferença (pp)", ascending=False)
+
+
+SEM_PERSONA = "Sem persona"
+
+
+class MarcarPersona(BaseEstimator, TransformerMixin):
+    """Acrescenta a coluna "persona": a persona do K-Means do trecho (UF, BR, faixa de 5 km) de cada acidente.
+
+    O fit monta os trechos e roda o K-Means só com os acidentes que recebe (o treino, ou as fatias de treino da
+    validação cruzada). Sem o alvo: os trechos usam só as condições dos acidentes. O transform só consulta a tabela,
+    então um acidente do teste não muda as personas. Um trecho com menos de 30 acidentes no treino fica "Sem persona".
+    """
+
+    def fit(self, X: pd.DataFrame, y=None) -> "MarcarPersona":
+        trechos = montar_trechos(X.drop(columns=[ALVO], errors="ignore"))
+        agrupados = agrupar(trechos)
+        if agrupados is None:
+            self.persona_do_trecho_ = pd.Series(dtype=str)
+        else:
+            self.persona_do_trecho_ = agrupados.set_index(CHAVE_TRECHO)["persona"]
+        return self
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        faixa = X["km"] // TAMANHO_FAIXA_KM * TAMANHO_FAIXA_KM
+        chaves = pd.MultiIndex.from_arrays([X["uf"], X["br"], faixa], names=CHAVE_TRECHO)
+        persona = self.persona_do_trecho_.reindex(chaves).fillna(SEM_PERSONA).to_numpy()
+        return X.assign(persona=persona)

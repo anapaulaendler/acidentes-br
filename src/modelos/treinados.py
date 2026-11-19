@@ -26,7 +26,7 @@ class Classificador:
     metricas_treino: dict[str, float]  # o modelo final numa amostra do treino
     metricas_teste: dict[str, float]  # o modelo final no teste, que ele nunca viu
     probabilidades_teste: np.ndarray  # a probabilidade de fatal de cada acidente do teste
-    # os hiperparâmetros do treino; None = os padrões do catálogo
+    # os ajustes da busca (nomes do scikit-learn, como modelo__max_depth); {} ou None = os padrões do catálogo
     parametros: dict | None = None
 
 

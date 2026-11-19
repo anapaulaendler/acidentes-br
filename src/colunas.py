@@ -60,3 +60,6 @@ NUMERICAS: tuple[str, ...] = (
     "pessoas",
     "veiculos"
 )
+
+# as categóricas que os modelos recebem: as da base e a persona do trecho (K-Means), que o pipeline calcula
+CATEGORICAS_MODELO: tuple[str, ...] = CATEGORICAS + ("persona",)

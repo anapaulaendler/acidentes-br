@@ -30,14 +30,14 @@ def montar_features(df: pd.DataFrame) -> pd.DataFrame:
     return df.drop(columns=list(VAZAMENTO), errors="ignore")
 
 
-def validacao_cruzada(nome: str, df: pd.DataFrame, fatias: int = FATIAS, **params) -> pd.DataFrame:
+def validacao_cruzada(nome: str, df: pd.DataFrame, fatias: int = FATIAS, ajustes: dict | None = None, **params) -> pd.DataFrame:
     df = montar_features(df)
     divisor = StratifiedKFold(n_splits=fatias, shuffle=True, random_state=2903)
 
     linhas = []
     for indices_treino, indices_teste in divisor.split(df, df[ALVO]):
         treino, teste = df.iloc[indices_treino], df.iloc[indices_teste]
-        modelo = treinar(nome, treino, **params)
+        modelo = treinar(nome, treino, ajustes, **params)
         linhas.append(metricas(teste[ALVO], modelo.predict_proba(teste)[:, 1]))
 
     return pd.DataFrame(linhas)  # uma linha por fatia
