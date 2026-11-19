@@ -104,6 +104,7 @@ src/                  dados e modelos
 ├── limpeza.py        limpeza e grupos de causa
 ├── colunas.py        os grupos de colunas e o alvo (fatal)
 ├── trechos.py        os trechos de rodovia da regressão
+├── duplicacao.py     o mesmo trecho antes e depois da duplicação (diferença em diferenças)
 ├── avaliacao.py      a validação cruzada e as métricas
 ├── features/         a codificação das colunas
 └── modelos/          regressão logística, árvore de decisão, KNN, Random Forest, Gradient Boosting, MLP, rede com embeddings (PyTorch) e o catálogo
