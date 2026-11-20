@@ -13,7 +13,7 @@ Fonte dos dados: [dados abertos da PRF](https://www.gov.br/prf/pt-br/acesso-a-in
    pip install -r requirements.txt
    ```
 
-2. Coloque os arquivos `datatran2017.csv` a `datatran2026.csv` em `data/raw/`.
+2. Coloque os arquivos `datatran2017.csv` a `datatran2026.csv` em `data/raw/`, ou só o zip da entrega, `data/raw/acidentes_prf_brutos_2017_2026.zip`: o notebook extrai os CSVs dele.
 
 3. Abra o notebook `notebooks/analise_prf.ipynb` e rode as células em ordem.
 
@@ -23,6 +23,12 @@ Fonte dos dados: [dados abertos da PRF](https://www.gov.br/prf/pt-br/acesso-a-in
    python3 -m scripts.buscar_hiperparametros                         # a busca, numa amostra do treino
    python3 -m scripts.treinar_modelos                                # todos os modelos
    python3 -m scripts.treinar_modelos "Rede com one-hot (PyTorch)"   # só esses
+   ```
+
+   Para gerar os dois zips de dados da entrega (os CSVs brutos e a base limpa num CSV só):
+
+   ```bash
+   python3 -m scripts.exportar_base
    ```
 
    Os modelos ficam salvos em `modelos_treinados/modelos.joblib`. O notebook só carrega esse arquivo, porque o treino com a base completa pode levar horas.
@@ -96,7 +102,7 @@ O `class_weight="balanced"` dá mais peso à classe fatal no treino. Os acidente
 
 ```
 notebooks/
-└── analise_prf.ipynb    a análise: dados, limpeza, regressão, k-means e os modelos treinados
+└── analise_prf.ipynb    a análise: LGPD, limpeza, regressão, k-means, PCA e DBSCAN, os modelos e a conclusão executiva
 src/                  dados e modelos
 ├── base.py           a base completa e a amostra de produção
 ├── carregar.py       leitura de CSV, JSON e XML
@@ -111,5 +117,6 @@ src/                  dados e modelos
 scripts/
 ├── buscar_hiperparametros.py   busca os hiperparâmetros e salva em modelos_treinados/busca.joblib
 ├── treinar_modelos.py   treina e salva os modelos em modelos_treinados/
+├── exportar_base.py     gera os zips de dados da entrega (brutos e base limpa)
 └── gerar_producao.py    gera a amostra de produção (data/amostras/producao_100.csv)
 ```

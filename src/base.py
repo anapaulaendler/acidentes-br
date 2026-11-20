@@ -1,5 +1,6 @@
 """A base completa da PRF (data/raw/) e a amostra de produção, que fica fora do treino."""
 
+import zipfile
 from pathlib import Path
 
 import pandas as pd
@@ -13,6 +14,18 @@ PASTA_RAW = RAIZ / "data" / "raw"
 PRODUCAO = RAIZ / "data" / "amostras" / "producao_100.csv"
 ANOS = range(2017, 2027)
 NOME = f"Base completa PRF {ANOS[0]}–{ANOS[-1]}"
+# os CSVs brutos, compactados, como vão na entrega; a base limpa vai em data/processed/ (scripts/exportar_base.py)
+ZIP_BRUTOS = PASTA_RAW / f"acidentes_prf_brutos_{ANOS[0]}_{ANOS[-1]}.zip"
+ZIP_LIMPOS = RAIZ / "data" / "processed" / f"acidentes_prf_{ANOS[0]}_{ANOS[-1]}_limpos.zip"
+
+
+def garantir_brutos() -> None:
+    """Extrai do zip os CSVs brutos que faltam em data/raw/."""
+    faltando = [f"datatran{ano}.csv" for ano in ANOS if not (PASTA_RAW / f"datatran{ano}.csv").exists()]
+    if faltando and ZIP_BRUTOS.exists():
+        with zipfile.ZipFile(ZIP_BRUTOS) as arquivo:
+            for nome in faltando:
+                arquivo.extract(nome, PASTA_RAW)
 
 
 def _limpar(bruto: pd.DataFrame) -> pd.DataFrame:
@@ -33,6 +46,7 @@ def _sem_producao(bruto: pd.DataFrame) -> pd.DataFrame:
 
 def base_de_treino() -> pd.DataFrame:
     """A base completa, limpa e sem os acidentes da amostra de produção."""
+    garantir_brutos()
     faltando = [ano for ano in ANOS if not (PASTA_RAW / f"datatran{ano}.csv").exists()]
     if faltando:
         raise FileNotFoundError(f"Faltam em {PASTA_RAW}: " + ", ".join(f"datatran{ano}.csv" for ano in faltando))
